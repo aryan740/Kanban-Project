@@ -1,13 +1,13 @@
 import React from 'react';
-import { useTasks } from '../../context/TaskContext';
-import { X, RefreshCw, Trash2, ShieldAlert } from 'lucide-react';
+import { useTasks } from '../../Context/TaskContext'; // Synced Context structural path tracking
+import { X, RefreshCw, ShieldAlert } from 'lucide-react';
 
 export default function GlobalLogCenter({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const { state, dispatch, user } = useTasks();
   
-  // Extract all soft-deleted records
+  // Extract all soft-deleted records from global matrix
   const deletedTasks = (state.tasks || []).filter(task => task.isDeleted);
 
   const handleRestore = (id) => {
@@ -50,24 +50,33 @@ export default function GlobalLogCenter({ isOpen, onClose }) {
         <div className="p-6 flex-1 overflow-y-auto space-y-3">
           {deletedTasks.length > 0 ? (
             deletedTasks.map(task => (
-              <div key={task.id} className="border border-slate-200/80 bg-slate-50/40 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+              /* Differentiated Soft Delete Layout Vector (Dashed Border + Grayscale/Opacity shift) */
+              <div 
+                key={task.id} 
+                className="border border-dashed border-slate-300 bg-slate-50/30 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 opacity-75 hover:opacity-100 hover:border-indigo-300 hover:bg-slate-100/50"
+              >
                 <div className="space-y-1 max-w-md">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="text-xs font-bold text-slate-800 tracking-tight">{task.title}</h4>
+                    {/* Visual strikethrough logic mapping active on typography */}
+                    <h4 className="text-xs font-bold text-slate-500 tracking-tight line-through decoration-slate-400">
+                      {task.title}
+                    </h4>
                     <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 font-mono border border-rose-100">
                       {checkRetentionTime(task.deletedAt)}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 line-clamp-1">{task.description || 'No context description logs field mapping.'}</p>
+                  <p className="text-[11px] text-slate-400 italic line-clamp-1">
+                    {task.description || 'No context description logs field mapping.'}
+                  </p>
                   <p className="text-[9px] font-bold text-slate-400">Removed By: <span className="text-slate-600">{task.operator || 'System User'}</span></p>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleRestore(task.id)}
-                  className="flex items-center gap-1.5 bg-slate-950 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                  className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <RefreshCw className="w-3 h-3 animate-reverse-spin" />
+                  <RefreshCw className="w-3 h-3" />
                   <span>Restore Node</span>
                 </button>
               </div>

@@ -1,15 +1,18 @@
 import React from 'react';
-import { useTasks } from '../../context/TaskContext';
+import { useTasks } from '../../Context/TaskContext'; // Enforced correct folder architecture path casing
 import { AlertCircle, CheckCircle2, ListTodo, TrendingUp } from 'lucide-react';
 
 export default function Analytics() {
   const { state } = useTasks();
   const tasks = state.tasks || [];
 
-  // Data processing mathematics layers
-  const totalTasks = tasks.length;
-  const highPriorityTasks = tasks.filter(t => t.priority === 'high').length;
-  const doneTasks = tasks.filter(t => t.status === 'done' || t.status === 'Done').length;
+  // Strict Dynamic Matrix Filter: Exclude elements flagged inside retention state
+  const activeTasks = tasks.filter(t => !t.isDeleted);
+
+  // Math processing parameters run explicitly on active assets only
+  const totalTasks = activeTasks.length;
+  const highPriorityTasks = activeTasks.filter(t => t.priority === 'high').length;
+  const doneTasks = activeTasks.filter(t => t.status === 'done' || t.status === 'Done').length;
   
   // Prevent division by zero runtime crash
   const completionRate = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;

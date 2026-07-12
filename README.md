@@ -2,7 +2,7 @@
 
 A high-performance, granular task management matrix built using modern software design methodologies. Synapse provides robust workflow node tracking, persistent state orchestration, and complete forensic audit telemetry mapping with dynamic analytical feedback.
 
-**🌐 Live Production Deployment:** [https://aryan740.github.io/kanban-project/](https://aryan740.github.io/kanban-project/)
+**🌐 Live Production Deployment:** [https://aryan740.github.io/Kanban-Project/](https://aryan740.github.io/Kanban-Project/)
 
 ---
 
@@ -51,5 +51,5 @@ To spin up a local development instance of the execution environment, execute th
 
 ### 1. Clone the Node Repository
 ```bash
-git clone [https://github.com/aryan740/kanban-project.git](https://github.com/aryan740/kanban-project.git)
-cd kanban-project
+git clone [https://github.com/aryan740/Kanban-Project.git](https://github.com/aryan740/Kanban-Project.git)
+cd Kanban-Project
