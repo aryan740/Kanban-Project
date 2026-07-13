@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useReducer, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const TaskContext = createContext();
@@ -12,6 +12,26 @@ const initialState = {
   orgMembers: [],
   activePresence: []
 };
+
+export const ROLES = Object.freeze({
+  ADMIN: 'admin',
+  MANAGER: 'manager',
+  EMPLOYEE: 'employee',
+});
+
+export function canManageOrganization(role) {
+  return role === ROLES.ADMIN;
+}
+
+export function canAssignTasks(role) {
+  return role === ROLES.ADMIN || role === ROLES.MANAGER;
+}
+
+export function canUpdateTask(task, profile) {
+  if (!profile) return false;
+  if (canAssignTasks(profile.role)) return true;
+  return task.assignedTo === profile.username;
+}
 
 function taskReducer(state, action) {
   switch (action.type) {
@@ -193,46 +213,64 @@ export function TaskProvider({ children }) {
     }
   }, [state.theme]);
 
-  // 2. Auth Session Persistence Engine (Fixed Token Kill Bugs)
-  useEffect(() => {
-    const initializeSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setUser(session.user);
-        await fetchUserProfile(session.user.id);
-      }
-      setLoading(false);
-    };
-
-    initializeSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        setUser(session.user);
-        await fetchUserProfile(session.user.id);
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserProfile = async (uid) => {
+  const fetchUserProfile = useCallback(async (uid) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', uid)
         .single();
-      if (!error && data) {
-        setProfile(data);
-      }
-    } catch (e) {
-      console.error("Profile metadata extraction failed:", e.message);
+
+      if (error) throw error;
+      setProfile(data);
+      return data;
+    } catch (error) {
+      console.error('Profile metadata extraction failed:', error.message);
+      setProfile(null);
+      return null;
     }
-  };
+  }, []);
+
+  // Auth is hydrated once from Supabase's persisted session. Token refreshes are
+  // handled by the client and do not trigger an unnecessary full profile reset.
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (session && isMounted) {
+          setUser(session.user);
+          await fetchUserProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('Session hydration failed:', error.message);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    initializeSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setUser(session.user);
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          void fetchUserProfile(session.user.id);
+        }
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchUserProfile]);
 
   // 3. Multi-Tenant Sync Layer (Tracks Tenant Orgs & Sub-accounts)
   useEffect(() => {
@@ -297,7 +335,7 @@ export function TaskProvider({ children }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile]);
+  }, [profile, user?.email]);
 
   // 5. Automated Debounced Save Framework (Saves to the target Org Matrix row)
   useEffect(() => {

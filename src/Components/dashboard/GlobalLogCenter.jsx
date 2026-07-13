@@ -3,9 +3,9 @@ import { useTasks } from '../../Context/TaskContext'; // Synced Context structur
 import { X, RefreshCw, ShieldAlert } from 'lucide-react';
 
 export default function GlobalLogCenter({ isOpen, onClose }) {
-  if (!isOpen) return null;
-
   const { state, dispatch, user } = useTasks();
+
+  if (!isOpen) return null;
   
   // Extract all soft-deleted records from global matrix
   const deletedTasks = (state.tasks || []).filter(task => task.isDeleted);
