@@ -9,7 +9,7 @@ import AuditSidebar from './components/dashboard/AuditSidebar';
 import GlobalLogCenter from './components/dashboard/GlobalLogCenter';
 
 export default function App() {
-  const { user, loading } = useTasks();
+  const { user, profile, loading } = useTasks();
   const [modalState, setModalState] = useState(null);
   const [activeAuditTask, setActiveAuditTask] = useState(null);
   
@@ -47,7 +47,7 @@ export default function App() {
         onOpenGeneralLogs={() => setShowGeneralLogs(true)} 
       />
       
-      <Analytics />
+      {profile?.role === 'admin' && <Analytics />}
       
       <div className="flex-1 overflow-x-auto">
         <Board onOpenModal={handleOpenModal} onOpenAudit={setActiveAuditTask} />

@@ -59,6 +59,8 @@ export default function Modal({ mode, taskToEdit, onClose }) {
         assignedTo,
         dueDate,
         subtasks,
+        comments: [],
+        creator: currentOperator,
         operator: currentOperator,
         createdAt: new Date().toISOString()
       };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { canManageOrganization, canUpdateTask, useTasks } from '../../Context/TaskContext';
-import { Calendar, Edit3, Trash2, History, User, AlertTriangle } from 'lucide-react';
+import { Calendar, CheckSquare, Edit3, MessageSquare, Trash2, History, User, AlertTriangle } from 'lucide-react';
 
 const PRIORITY_THEMES = {
   high: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40',
@@ -12,6 +12,8 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
   const { dispatch, user, profile } = useTasks();
   
   const subtasks = task.subtasks || [];
+  const comments = task.comments || [];
+  const activityCount = task.logs?.length || 0;
   const completedSubtasks = subtasks.filter(s => s.completed).length;
   const subtaskPercent = subtasks.length > 0 ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
 
@@ -101,6 +103,10 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
       </div>
 
       {/* Task Content */}
+      <div className="mb-2 flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{(task.status || 'backlog').replace('_', ' ')}</span>
+        <span>Created by {task.creator || task.operator || 'Unknown'}</span>
+      </div>
       <h4 className="text-xs font-bold text-slate-800 dark:text-white tracking-tight mb-1 line-clamp-1">
         {task.title}
       </h4>
@@ -135,6 +141,11 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
           <User className="w-2.5 h-2.5 text-slate-400" />
           <span className="truncate">{task.assignedTo ? `@${task.assignedTo}` : 'Unassigned'}</span>
         </span>
+      </div>
+      <div className="mt-2 flex items-center gap-3 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+        <span className="flex items-center gap-1" title="Checklist progress"><CheckSquare className="h-3 w-3" />{completedSubtasks}/{subtasks.length}</span>
+        <span className="flex items-center gap-1" title="Comments"><MessageSquare className="h-3 w-3" />{comments.length}</span>
+        <span className="flex items-center gap-1" title="Activity"><History className="h-3 w-3" />{activityCount}</span>
       </div>
     </div>
   );
