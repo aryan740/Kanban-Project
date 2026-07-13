@@ -7,7 +7,10 @@ const TaskContext = createContext();
 const initialState = {
   tasks: [],
   searchQuery: '',
-  filters: { priority: 'all' }
+  filters: { priority: 'all' },
+  theme: 'light',
+  orgMembers: [],
+  activePresence: []
 };
 
 function taskReducer(state, action) {
@@ -16,7 +19,6 @@ function taskReducer(state, action) {
       return { ...state, tasks: action.payload };
       
     case 'CREATE_TASK': {
-      // Automatic rich log generation during creation phase
       const enrichedTask = {
         ...action.payload,
         isDeleted: false,
@@ -25,7 +27,7 @@ function taskReducer(state, action) {
           timestamp: new Date().toISOString(),
           user: action.payload.operator || 'Authorized Operator',
           action: 'INITIALIZATION',
-          details: 'Created core action ticket node.'
+          details: `Created core action ticket node. Assigned to: ${action.payload.assignedTo || 'Unassigned'}`
         }]
       };
       return { ...state, tasks: [...state.tasks, enrichedTask] };
@@ -36,20 +38,16 @@ function taskReducer(state, action) {
         ...state,
         tasks: state.tasks.map(task => {
           if (task.id === action.payload.id) {
-            // Check matching differences to see what mutated
             const changes = [];
             if (task.title !== action.payload.title) changes.push('Title');
             if (task.description !== action.payload.description) changes.push('Description');
             if (task.priority !== action.payload.priority) changes.push('Priority Level');
-            
-            // Checking if checklist item counts mutated
-            const oldSubs = task.subtasks || [];
-            const newSubs = action.payload.subtasks || [];
-            if (oldSubs.length !== newSubs.length) changes.push('Checklist items count');
+            if (task.assignedTo !== action.payload.assignedTo) changes.push('Assigned Resource');
+            if (task.dueDate !== action.payload.dueDate) changes.push('Timeline Deadline');
 
             const logDetails = changes.length > 0 
               ? `Mutated core properties: [${changes.join(', ')}].`
-              : 'Adjusted nested checklist matrix attributes.';
+              : 'Adjusted nested matrix attributes.';
 
             return {
               ...action.payload,
@@ -123,8 +121,6 @@ function taskReducer(state, action) {
           if (task.id === action.payload.id) {
             const oldStatus = task.status || 'backlog';
             const newStatus = action.payload.newStatus;
-            
-            // Avoid duplicate log if dropped into the same column
             if (oldStatus === newStatus) return task;
 
             return {
@@ -150,6 +146,21 @@ function taskReducer(state, action) {
       
     case 'SET_FILTERS':
       return { ...state, filters: { ...state.filters, ...action.payload } };
+
+    case 'TOGGLE_THEME': {
+      const targetTheme = state.theme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('synapse_theme', targetTheme);
+      return { ...state, theme: targetTheme };
+    }
+
+    case 'SET_THEME':
+      return { ...state, theme: action.payload };
+
+    case 'SET_ORG_MEMBERS':
+      return { ...state, orgMembers: action.payload };
+
+    case 'SET_PRESENCE':
+      return { ...state, activePresence: action.payload };
       
     default:
       return state;
@@ -159,65 +170,158 @@ function taskReducer(state, action) {
 export function TaskProvider({ children }) {
   const [state, dispatch] = useReducer(taskReducer, initialState);
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Listen to Real-time Auth Lifecycle Sessions
+  // 1. Auto-Adaptive System Theming Configuration Engine
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const savedTheme = localStorage.getItem('synapse_theme');
+    if (savedTheme) {
+      dispatch({ type: 'SET_THEME', payload: savedTheme });
+    } else {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      dispatch({ type: 'SET_THEME', payload: systemPrefersDark ? 'dark' : 'light' });
+    }
+  }, []);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (state.theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [state.theme]);
+
+  // 2. Auth Session Persistence Engine (Fixed Token Kill Bugs)
+  useEffect(() => {
+    const initializeSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        await fetchUserProfile(session.user.id);
+      }
+      setLoading(false);
+    };
+
+    initializeSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        setUser(session.user);
+        await fetchUserProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Fetch User-Isolated Board Records from Postgres Cloud
+  const fetchUserProfile = async (uid) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .single();
+      if (!error && data) {
+        setProfile(data);
+      }
+    } catch (e) {
+      console.error("Profile metadata extraction failed:", e.message);
+    }
+  };
+
+  // 3. Multi-Tenant Sync Layer (Tracks Tenant Orgs & Sub-accounts)
   useEffect(() => {
-    if (!user) return;
+    if (!profile?.org_id) return;
 
-    const fetchUserBoardData = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('boards')
-          .select('tasks')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') throw error; // PGRST116 means row not found
-        if (data) {
-          dispatch({ type: 'SET_TASKS', payload: data.tasks || [] });
-        }
-      } catch (err) {
-        console.error('Core hydration error:', err.message);
+    // Fetch org tasks
+    const fetchOrgMatrixData = async () => {
+      const { data, error } = await supabase
+        .from('boards')
+        .select('tasks')
+        .eq('org_id', profile.org_id)
+        .single();
+      if (!error && data) {
+        dispatch({ type: 'SET_TASKS', payload: data.tasks || [] });
+      }
+    };
+    
+    // Fetch all members associated with this organization link
+    const fetchOrgMembers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, role')
+        .eq('org_id', profile.org_id);
+      if (data) {
+        dispatch({ type: 'SET_ORG_MEMBERS', payload: data });
       }
     };
 
-    fetchUserBoardData();
-  }, [user]);
+    fetchOrgMatrixData();
+    fetchOrgMembers();
 
-  // 3. Automated Cloud Sync Engine (Debounced Database Updates)
+    // 4. Collaborative Real-time Broadcast Pipeline Integration
+    const channel = supabase.channel(`org_${profile.org_id}`, {
+      config: { presence: { key: profile.username || user.email } }
+    });
+
+    channel
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'boards', 
+        filter: `org_id=eq.${profile.org_id}` 
+      }, (payload) => {
+        if (payload.new && payload.new.tasks) {
+          dispatch({ type: 'SET_TASKS', payload: payload.new.tasks });
+        }
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const stateData = channel.presenceState();
+        const activeUsers = Object.keys(stateData).map(key => ({
+          name: key,
+          metadata: stateData[key][0]
+        }));
+        dispatch({ type: 'SET_PRESENCE', payload: activeUsers });
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ online_at: new Date().toISOString(), role: profile.role });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile]);
+
+  // 5. Automated Debounced Save Framework (Saves to the target Org Matrix row)
   useEffect(() => {
-    if (!user) return;
+    if (!profile?.org_id) return;
 
     const delayDebounceFn = setTimeout(async () => {
       try {
         await supabase
           .from('boards')
-          .upsert({ user_id: user.id, tasks: state.tasks, updated_at: new Date().toISOString() });
+          .upsert({ 
+            org_id: profile.org_id, 
+            tasks: state.tasks, 
+            updated_at: new Date().toISOString() 
+          }, { onConflict: 'org_id' });
       } catch (err) {
-        console.error('Cloud synchronization execution failed:', err.message);
+        console.error('Multi-tenant cloud synch failed:', err.message);
       }
-    }, 700);
+    }, 600);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [state.tasks, user]);
+  }, [state.tasks, profile]);
 
   return (
-    <TaskContext.Provider value={{ state, dispatch, user, loading }}>
+    <TaskContext.Provider value={{ state, dispatch, user, profile, loading }}>
       {children}
     </TaskContext.Provider>
   );

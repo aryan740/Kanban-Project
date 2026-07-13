@@ -1,27 +1,27 @@
 import React, { useState } from 'react';
 import { useTasks } from '../../context/TaskContext';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, UserCheck } from 'lucide-react';
 
 export default function Modal({ mode, taskToEdit, onClose }) {
-  const { dispatch, user } = useTasks();
+  const { state, dispatch, profile } = useTasks();
 
-  // 1. Initial State Hydration directly aligned with system schema standards
+  // 1. Initial State Hydration with strict metadata parameters mappings
   const [title, setTitle] = useState(mode === 'edit' && taskToEdit ? taskToEdit.title : '');
   const [description, setDescription] = useState(mode === 'edit' && taskToEdit ? taskToEdit.description : '');
   const [status, setStatus] = useState(mode === 'edit' && taskToEdit ? taskToEdit.status : 'backlog');
   const [priority, setPriority] = useState(mode === 'edit' && taskToEdit ? taskToEdit.priority : 'medium');
+  const [assignedTo, setAssignedTo] = useState(mode === 'edit' && taskToEdit ? taskToEdit.assignedTo : '');
+  const [dueDate, setDueDate] = useState(mode === 'edit' && taskToEdit ? taskToEdit.dueDate : '');
   
-  // Standardized lowercase subtasks array key tracking
   const [subtasks, setSubtasks] = useState(mode === 'edit' && taskToEdit ? (taskToEdit.subtasks || taskToEdit.subTasks || []) : []);
   const [newSubTaskText, setNewSubTaskText] = useState('');
 
-  // Sub-task Core Management Actions
   const handleAddSubTask = () => {
     if (!newSubTaskText.trim()) return;
     const newSub = {
       id: `sub-${Date.now()}`,
       text: newSubTaskText.trim(),
-      completed: false // Standardized boolean flag matching card rendering loops
+      completed: false
     };
     setSubtasks([...subtasks, newSub]);
     setNewSubTaskText('');
@@ -42,7 +42,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
     e.preventDefault();
     if (!title.trim()) return alert('Issue Title is strictly mandated for operations.');
 
-    const currentOperator = user?.email || 'Authorized Operator';
+    const currentOperator = profile?.username || 'Authorized Operator';
 
     if (mode === 'create') {
       const newTask = {
@@ -51,6 +51,8 @@ export default function Modal({ mode, taskToEdit, onClose }) {
         description: description.trim(),
         status,
         priority,
+        assignedTo,
+        dueDate,
         subtasks,
         operator: currentOperator,
         createdAt: new Date().toISOString()
@@ -63,6 +65,8 @@ export default function Modal({ mode, taskToEdit, onClose }) {
         description: description.trim(),
         status,
         priority,
+        assignedTo,
+        dueDate,
         subtasks,
         operator: currentOperator
       };
@@ -76,19 +80,19 @@ export default function Modal({ mode, taskToEdit, onClose }) {
       dispatch({ type: 'EDIT_TASK', payload: updatedTask });
     }
 
-    onClose(); // Dismiss modal layout framework securely
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in select-none">
-      <div className="bg-white border border-slate-200 rounded-[22px] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col transition-all">
+    <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in select-none">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[22px] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col transition-all">
         
         {/* Modal Window Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
             {mode === 'create' ? 'Initialize Action Item' : 'Mutate Workspace Record'}
           </h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent hover:border-slate-100 dark:hover:border-slate-700 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -96,36 +100,36 @@ export default function Modal({ mode, taskToEdit, onClose }) {
         {/* Dynamic Interactive Input Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 flex-1">
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-0.5">Issue Title *</label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5">Issue Title *</label>
             <input
               type="text"
               placeholder="e.g., Fix session expiration validation schema"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-600 focus:outline-none text-slate-800 transition-all placeholder:text-slate-300"
+              className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
               required
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-0.5">Detailed Description</label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5">Detailed Description</label>
             <textarea
-              rows="3"
+              rows="2"
               placeholder="Provide explicit operational details context for this workspace tracking node..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-600 focus:outline-none text-slate-800 resize-none transition-all placeholder:text-slate-300"
+              className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white resize-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
             />
           </div>
 
           {/* Grid Selection Layers for Priority & Status */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-0.5">Workflow Status</label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5">Workflow Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-600 focus:outline-none cursor-pointer appearance-none transition-all"
+                className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
               >
                 <option value="backlog">Backlog</option>
                 <option value="todo">To Do</option>
@@ -136,11 +140,11 @@ export default function Modal({ mode, taskToEdit, onClose }) {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-0.5">Severity / Priority</label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5">Severity / Priority</label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-600 focus:outline-none cursor-pointer appearance-none transition-all"
+                className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
               >
                 <option value="low">Low Severity</option>
                 <option value="medium">Medium Severity</option>
@@ -149,9 +153,42 @@ export default function Modal({ mode, taskToEdit, onClose }) {
             </div>
           </div>
 
+          {/* New Enterprise Grid Input Segment: Assignee and Due Date Mapping */}
+          <div className="grid grid-cols-2 gap-4 border-t border-slate-100/80 dark:border-slate-800/80 pt-4">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5 flex items-center gap-1">
+                <UserCheck className="w-3 h-3 text-indigo-500" /> Assign Resource
+              </label>
+              <select
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
+              >
+                <option value="">Unassigned</option>
+                {state.orgMembers?.map(member => (
+                  <option key={member.id} value={member.username}>
+                    @{member.username} ({member.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5 flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-indigo-500" /> Timeline Deadline
+              </label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
+              />
+            </div>
+          </div>
+
           {/* Checklist Engine Block */}
-          <div className="border-t border-slate-100/80 pt-4 space-y-2">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 px-0.5">Target Action Checklist</label>
+          <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-4 space-y-2">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-0.5">Target Action Checklist</label>
             
             <div className="flex gap-2">
               <input
@@ -159,29 +196,29 @@ export default function Modal({ mode, taskToEdit, onClose }) {
                 placeholder="Add checklist sub-task item parameters..."
                 value={newSubTaskText}
                 onChange={(e) => setNewSubTaskText(e.target.value)}
-                className="flex-1 px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-600 focus:outline-none text-slate-800 transition-all placeholder:text-slate-300"
+                className="flex-1 px-3 py-2 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
               />
               <button
                 type="button"
                 onClick={handleAddSubTask}
-                className="bg-slate-950 text-white px-3 rounded-xl hover:bg-slate-800 transition-all shadow-sm flex items-center justify-center cursor-pointer"
+                className="bg-slate-950 dark:bg-indigo-600 text-white px-3 rounded-xl hover:bg-slate-800 dark:hover:bg-indigo-700 transition-all shadow-sm flex items-center justify-center cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
               </button>
             </div>
 
             {/* Render checklist stacks */}
-            <div className="max-h-32 overflow-y-auto space-y-1.5 pt-1 pr-1 scrollbar-thin">
+            <div className="max-h-24 overflow-y-auto space-y-1.5 pt-1 pr-1 scrollbar-thin">
               {subtasks.map(sub => (
-                <div key={sub.id} className="flex items-center justify-between bg-slate-50/60 border border-slate-200/50 rounded-xl p-2.5 group/item transition-colors hover:bg-slate-50">
+                <div key={sub.id} className="flex items-center justify-between bg-slate-50/60 dark:bg-slate-950/30 border border-slate-200/50 dark:border-slate-800/60 rounded-xl p-2 group/item transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
                   <div className="flex items-center gap-2.5">
                     <input
                       type="checkbox"
-                      checked={sub.completed || sub.isCompleted || false}
+                      checked={sub.completed || false}
                       onChange={() => handleToggleSubTask(sub.id)}
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer transition-all"
                     />
-                    <span className={`text-xs font-semibold text-slate-700 transition-all ${sub.completed || sub.isCompleted ? 'line-through text-slate-300/90' : ''}`}>
+                    <span className={`text-xs font-semibold text-slate-700 dark:text-slate-300 transition-all ${sub.completed ? 'line-through text-slate-300/90 dark:text-slate-600' : ''}`}>
                       {sub.text}
                     </span>
                   </div>
@@ -198,17 +235,17 @@ export default function Modal({ mode, taskToEdit, onClose }) {
           </div>
 
           {/* Actions Footer */}
-          <div className="border-t border-slate-100/80 pt-4 flex items-center justify-end gap-2 sticky bottom-0 bg-white pb-1">
+          <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-4 flex items-center justify-end gap-2 sticky bottom-0 bg-white dark:bg-slate-900 pb-1">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 cursor-pointer"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md cursor-pointer"
             >
               {mode === 'create' ? 'Deploy Issue' : 'Commit Adjustments'}
             </button>
