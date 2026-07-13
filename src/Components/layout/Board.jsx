@@ -68,17 +68,17 @@ export default function Board({ onOpenModal, onOpenAudit }) {
             onDragOver={(e) => handleDragOver(e, col.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, col.id)}
-            className={`flex flex-col max-h-[75vh] rounded-2xl p-3.5 bg-slate-100/70 border border-slate-200/40 transition-all duration-200 min-h-[340px] ${
-              activeOverColumn === col.id ? 'bg-indigo-50/50 border-dashed border-indigo-400/80 shadow-inner scale-[1.01]' : ''
+            className={`flex flex-col max-h-[75vh] rounded-2xl p-3.5 bg-slate-100/70 border border-slate-200/40 transition-all duration-200 min-h-[340px] dark:bg-slate-900 dark:border-slate-700 ${
+              activeOverColumn === col.id ? 'bg-indigo-50/50 border-dashed border-indigo-400/80 shadow-inner scale-[1.01] dark:bg-indigo-950/30 dark:border-indigo-500' : ''
             }`}
           >
             <div className="flex items-center justify-between mb-3 px-1">
               <div className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${col.accent}`} />
-                <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider truncate max-w-[90px]" title={col.title}>
+                <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider truncate max-w-[90px] dark:text-slate-200" title={col.title}>
                   {col.title}
                 </h3>
-                <span className="text-[10px] font-bold bg-slate-200/80 text-slate-600 px-1.5 py-0.5 rounded-md">
+                <span className="text-[10px] font-bold bg-slate-200/80 text-slate-600 px-1.5 py-0.5 rounded-md dark:bg-slate-800 dark:text-slate-300">
                   {columnTasks.length}
                 </span>
               </div>
@@ -95,7 +95,7 @@ export default function Board({ onOpenModal, onOpenAudit }) {
                   />
                 ))
               ) : (
-                <div className="h-24 flex items-center justify-center border border-dashed border-slate-200 rounded-xl text-[10px] font-medium text-slate-400/80 bg-slate-50/30">
+                <div className="h-24 flex items-center justify-center border border-dashed border-slate-200 rounded-xl text-[10px] font-medium text-slate-400/80 bg-slate-50/30 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
                   Drop items here
                 </div>
               )}

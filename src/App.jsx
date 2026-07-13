@@ -26,7 +26,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col items-center justify-center gap-3">
         <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase animate-pulse">
           Hydrating Cloud Instance...
@@ -40,7 +40,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 antialiased flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased flex flex-col relative overflow-hidden">
       {/* Interactive Layout Header with Retention Center Trigger */}
       <Header 
         onOpenModal={handleOpenModal} 

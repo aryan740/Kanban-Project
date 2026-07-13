@@ -29,19 +29,19 @@ export default function GlobalLogCenter({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none animate-fade-in">
-      <div className="bg-white border border-slate-200 rounded-[24px] shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto flex flex-col">
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none animate-fade-in">
+      <div className="bg-white border border-slate-200 rounded-[24px] shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto flex flex-col dark:bg-slate-900 dark:border-slate-700">
         
         {/* Header Grid */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 rounded-t-[24px]">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 rounded-t-[24px] dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center gap-2">
             <ShieldAlert className="w-[18px] h-[18px] text-indigo-600" />
             <div>
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">General Retention Logs center</h3>
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide dark:text-slate-100">General Retention Logs center</h3>
               <p className="text-[10px] font-medium text-slate-400">Soft-deleted items index log mapping (48 Hours active recovery lease)</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer dark:hover:bg-slate-700 dark:hover:text-slate-200">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -53,12 +53,12 @@ export default function GlobalLogCenter({ isOpen, onClose }) {
               /* Differentiated Soft Delete Layout Vector (Dashed Border + Grayscale/Opacity shift) */
               <div 
                 key={task.id} 
-                className="border border-dashed border-slate-300 bg-slate-50/30 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 opacity-75 hover:opacity-100 hover:border-indigo-300 hover:bg-slate-100/50"
+                className="border border-dashed border-slate-300 bg-slate-50/30 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 opacity-75 hover:opacity-100 hover:border-indigo-300 hover:bg-slate-100/50 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-indigo-500 dark:hover:bg-slate-800"
               >
                 <div className="space-y-1 max-w-md">
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* Visual strikethrough logic mapping active on typography */}
-                    <h4 className="text-xs font-bold text-slate-500 tracking-tight line-through decoration-slate-400">
+                      <h4 className="text-xs font-bold text-slate-500 tracking-tight line-through decoration-slate-400 dark:text-slate-300">
                       {task.title}
                     </h4>
                     <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 font-mono border border-rose-100">
@@ -68,7 +68,7 @@ export default function GlobalLogCenter({ isOpen, onClose }) {
                   <p className="text-[11px] text-slate-400 italic line-clamp-1">
                     {task.description || 'No context description logs field mapping.'}
                   </p>
-                  <p className="text-[9px] font-bold text-slate-400">Removed By: <span className="text-slate-600">{task.operator || 'System User'}</span></p>
+                  <p className="text-[9px] font-bold text-slate-400">Removed By: <span className="text-slate-600 dark:text-slate-300">{task.operator || 'System User'}</span></p>
                 </div>
 
                 <button
@@ -82,7 +82,7 @@ export default function GlobalLogCenter({ isOpen, onClose }) {
               </div>
             ))
           ) : (
-            <div className="h-48 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 text-xs gap-2 bg-slate-50/20">
+            <div className="h-48 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 text-xs gap-2 bg-slate-50/20 dark:border-slate-700 dark:bg-slate-800/40">
               <ShieldAlert className="w-5 h-5 text-slate-300" />
               <span className="font-semibold text-[11px] tracking-wide text-slate-400/80">No structural items indexed inside retention buffer matrix.</span>
             </div>

@@ -91,11 +91,11 @@ export default function Modal({ mode, taskToEdit, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in select-none">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[22px] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col transition-all">
+    <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in select-none">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[22px] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col transition-all">
         
         {/* Modal Window Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-900 z-10">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
             {mode === 'create' ? 'Initialize Action Item' : 'Mutate Workspace Record'}
           </h2>
@@ -139,7 +139,6 @@ export default function Modal({ mode, taskToEdit, onClose }) {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
-                disabled={statusOnly}
               >
                 <option value="backlog">Backlog</option>
                 <option value="todo">To Do</option>
@@ -155,6 +154,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
                 className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
+                disabled={statusOnly}
               >
                 <option value="low">Low Severity</option>
                 <option value="medium">Medium Severity</option>

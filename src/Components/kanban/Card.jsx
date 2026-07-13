@@ -3,8 +3,8 @@ import { canManageOrganization, canUpdateTask, useTasks } from '../../Context/Ta
 import { Calendar, CheckSquare, Edit3, MessageSquare, Trash2, History, User, AlertTriangle } from 'lucide-react';
 
 const PRIORITY_THEMES = {
-  high: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40',
-  medium: 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40',
+  high: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/70',
+  medium: 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/70',
   low: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
 };
 
@@ -19,7 +19,7 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
 
   // ⏳ Dynamic Timeline Evaluator
   const getTimelineStatus = () => {
-    if (!task.dueDate) return { isUrgent: false, styles: 'border-l-indigo-500 text-slate-400' };
+    if (!task.dueDate) return { isUrgent: false, styles: 'border-l-indigo-500 text-slate-400 dark:text-slate-400' };
     
     const deadline = new Date(task.dueDate);
     const now = new Date();
@@ -27,12 +27,12 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
     const hoursRemaining = timeDiff / (1000 * 60 * 60);
 
     if (timeDiff < 0) {
-      return { isUrgent: false, isExpired: true, styles: 'border-l-rose-600 dark:border-l-rose-500 bg-rose-50/30 text-rose-600 dark:text-rose-400' };
+      return { isUrgent: false, isExpired: true, styles: 'border-l-rose-600 dark:border-l-rose-500 bg-rose-50/30 text-rose-600 dark:bg-rose-950/20 dark:text-rose-300' };
     }
     if (task.priority === 'high' && hoursRemaining <= 12) {
-      return { isUrgent: true, isExpired: false, styles: 'border-l-amber-500 animate-pulse text-amber-600 dark:text-amber-400' };
+      return { isUrgent: true, isExpired: false, styles: 'border-l-amber-500 animate-pulse text-amber-600 dark:text-amber-300' };
     }
-    return { isUrgent: false, isExpired: false, styles: 'border-l-indigo-500 text-slate-400' };
+    return { isUrgent: false, isExpired: false, styles: 'border-l-indigo-500 text-slate-400 dark:text-slate-400' };
   };
 
   const timeline = getTimelineStatus();
@@ -54,7 +54,7 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
     <div
       draggable={canUpdate}
       onDragStart={handleDragStart}
-      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800/80 rounded-2xl p-4 shadow-sm group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${timeline.styles} ${!canUpdate ? 'opacity-70 cursor-not-allowed' : ''}`}
+      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl p-4 shadow-sm dark:shadow-none group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${timeline.styles} ${!canUpdate ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       {/* Upper Meta Node */}
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -104,7 +104,7 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
 
       {/* Task Content */}
       <div className="mb-2 flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{(task.status || 'backlog').replace('_', ' ')}</span>
+        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800 dark:text-slate-300">{(task.status || 'backlog').replace('_', ' ')}</span>
         <span>Created by {task.creator || task.operator || 'Unknown'}</span>
       </div>
       <h4 className="text-xs font-bold text-slate-800 dark:text-white tracking-tight mb-1 line-clamp-1">

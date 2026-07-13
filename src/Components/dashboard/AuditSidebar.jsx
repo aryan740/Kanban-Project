@@ -64,10 +64,10 @@ export default function AuditSidebar({ task, onClose }) {
   const deadlineBadge = getDeadlineStatus();
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[400px] bg-white dark:bg-slate-900 border-l border-slate-200/80 dark:border-slate-800 shadow-2xl z-50 flex flex-col select-none transition-all duration-300 transform translate-x-0">
+    <div className="fixed inset-y-0 right-0 w-[400px] bg-white dark:bg-slate-900 border-l border-slate-200/80 dark:border-slate-700 shadow-2xl z-50 flex flex-col select-none transition-all duration-300 transform translate-x-0">
       
       {/* Sidebar Header */}
-      <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           <div>
@@ -84,7 +84,7 @@ export default function AuditSidebar({ task, onClose }) {
       </div>
 
       {/* Task Details & Dynamic Timelines */}
-      <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/20 space-y-3">
+      <div className="p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-900 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30">
             Target Node

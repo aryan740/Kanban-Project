@@ -5,7 +5,7 @@ import { Calendar, CheckSquare, Edit3, Trash2, History } from 'lucide-react';
 const PRIORITY_THEMES = {
   high: 'bg-rose-50 text-rose-700 border-rose-100',
   medium: 'bg-amber-50 text-amber-700 border-amber-100',
-  low: 'bg-slate-100 text-slate-700 border-slate-200',
+  low: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
 };
 
 export default function Card({ task, onOpenModal, onOpenAudit }) {
@@ -30,9 +30,9 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
 
   // High Contrast Array Join Architecture - Darker Hover and Clear Shadow Pulse
   const cardClasses = [
-    'bg-white',
+    'bg-white', 'dark:bg-slate-900',
     'border',
-    'border-slate-200/95',
+    'border-slate-200/95', 'dark:border-slate-700',
     'rounded-2xl',
     'p-4',
     'shadow-sm',
@@ -41,8 +41,8 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
     'border-l-4',
     'border-l-indigo-500',
     'hover:border-l-indigo-600',
-    'hover:bg-slate-100/90',
-    'hover:border-slate-300',
+    'hover:bg-slate-100/90', 'dark:hover:bg-slate-800',
+    'hover:border-slate-300', 'dark:hover:border-slate-600',
     'hover:shadow-md',
     'select-none',
     'cursor-grab',
@@ -66,7 +66,7 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
         </span>
         
         {/* Actions Panel */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 bg-white pl-2">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 bg-white dark:bg-slate-900 pl-2">
           <button 
             type="button"
             onClick={(e) => { e.stopPropagation(); onOpenAudit(task); }}
@@ -101,18 +101,18 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
       </div>
 
       {/* Task Content */}
-      <h4 className="text-xs font-bold text-slate-800 tracking-tight mb-1 line-clamp-1">
+      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 tracking-tight mb-1 line-clamp-1">
         {task.title}
       </h4>
       {task.description && (
-        <p className="text-[11px] text-slate-400 line-clamp-2 leading-normal mb-3">
+        <p className="text-[11px] text-slate-400 dark:text-slate-400 line-clamp-2 leading-normal mb-3">
           {task.description}
         </p>
       )}
 
       {/* Checklist */}
       {subtasks.length > 0 && (
-        <div className="mb-3 space-y-1 bg-slate-50/50 p-2 rounded-xl border border-slate-100">
+        <div className="mb-3 space-y-1 bg-slate-50/50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
           <div className="flex items-center justify-between text-[9px] font-bold text-slate-400">
             <span className="flex items-center gap-1">Checklist</span>
             <span>{completedSubtasks}/{subtasks.length}</span>
@@ -124,7 +124,7 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
       )}
 
       {/* Footer */}
-      <div className="pt-2 border-t border-t-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400">
+      <div className="pt-2 border-t border-t-slate-100 dark:border-slate-700 flex items-center justify-between text-[10px] font-bold text-slate-400">
         <span className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
           {task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No Timeline'}

@@ -23,14 +23,14 @@ export default function Column({ id, title, borderColor, onEditTask }) {
   });
 
   return (
-    <div className={`flex flex-col bg-slate-100/70 border-t-4 ${borderColor} rounded-b-xl p-3 min-h-[500px] max-h-[85vh] overflow-y-auto shadow-inner`}>
+    <div className={`flex flex-col bg-slate-100/70 dark:bg-slate-900 border-t-4 ${borderColor} rounded-b-xl p-3 min-h-[500px] max-h-[85vh] overflow-y-auto shadow-inner dark:shadow-none`}>
       
       {/* Column Header Metadata */}
-      <div className="flex items-center justify-between mb-4 sticky top-0 bg-slate-50/10 backdrop-blur-md py-1 z-10">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+      <div className="flex items-center justify-between mb-4 sticky top-0 bg-slate-50/10 dark:bg-slate-900/80 backdrop-blur-md py-1 z-10">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
           {title}
         </span>
-        <span className="text-[11px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+        <span className="text-[11px] font-bold bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-2 py-0.5 rounded-full">
           {filteredTasks.length}
         </span>
       </div>
@@ -38,7 +38,7 @@ export default function Column({ id, title, borderColor, onEditTask }) {
       {/* Task Stack Container */}
       <div className="flex flex-col gap-3 flex-1">
         {filteredTasks.length === 0 ? (
-          <div className="flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg p-6 text-center h-24 text-[11px] font-medium text-slate-400">
+          <div className="flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-6 text-center h-24 text-[11px] font-medium text-slate-400">
             No issues matching filters
           </div>
         ) : (

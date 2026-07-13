@@ -8,7 +8,7 @@ const initialState = {
   tasks: [],
   searchQuery: '',
   filters: { priority: 'all' },
-  theme: 'light',
+  theme: 'system',
   orgMembers: [],
   activePresence: []
 };
@@ -167,12 +167,6 @@ function taskReducer(state, action) {
     case 'SET_FILTERS':
       return { ...state, filters: { ...state.filters, ...action.payload } };
 
-    case 'TOGGLE_THEME': {
-      const targetTheme = state.theme === 'light' ? 'dark' : 'light';
-      localStorage.setItem('synapse_theme', targetTheme);
-      return { ...state, theme: targetTheme };
-    }
-
     case 'SET_THEME':
       return { ...state, theme: action.payload };
 
@@ -193,24 +187,21 @@ export function TaskProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Auto-Adaptive System Theming Configuration Engine
+  // The saved preference is separate from its resolved colour scheme so that
+  // System mode keeps following OS changes without overwriting the preference.
   useEffect(() => {
     const savedTheme = localStorage.getItem('synapse_theme');
-    if (savedTheme) {
-      dispatch({ type: 'SET_THEME', payload: savedTheme });
-    } else {
-      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      dispatch({ type: 'SET_THEME', payload: systemPrefersDark ? 'dark' : 'light' });
-    }
+    dispatch({ type: 'SET_THEME', payload: ['light', 'dark', 'system'].includes(savedTheme) ? savedTheme : 'system' });
   }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
-    if (state.theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => root.classList.toggle('dark', state.theme === 'dark' || (state.theme === 'system' && mediaQuery.matches));
+
+    applyTheme();
+    mediaQuery.addEventListener('change', applyTheme);
+    return () => mediaQuery.removeEventListener('change', applyTheme);
   }, [state.theme]);
 
   const fetchUserProfile = useCallback(async (uid) => {

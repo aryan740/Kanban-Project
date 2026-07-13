@@ -83,7 +83,7 @@ export default function Auth() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-35 dark:opacity-20 pointer-events-none" />
 
       {/* Structured Glassmorphic 3D Component Node */}
-      <div className="w-full max-w-[400px] bg-white/85 dark:bg-slate-900/80 border border-white/80 dark:border-slate-800/80 rounded-[24px] p-7 shadow-[0_25px_50px_-12px_rgba(15,23,42,0.08)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] backdrop-blur-lg relative z-10 transform transition-all duration-300">
+      <div className="w-full max-w-[400px] bg-white/85 dark:bg-slate-900/80 border border-white/80 dark:border-slate-700 rounded-[24px] p-7 shadow-[0_25px_50px_-12px_rgba(15,23,42,0.08)] dark:shadow-[0_25px_50px_-12px_rgba(15,23,42,0.45)] backdrop-blur-lg relative z-10 transform transition-all duration-300">
         
         {/* Central Clean Branding Core */}
         <div className="flex flex-col items-center text-center mb-6">
@@ -129,14 +129,14 @@ export default function Auth() {
                   <button
                     type="button"
                     onClick={() => setRole('admin')}
-                    className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${role === 'admin' ? 'bg-slate-950 border-slate-950 text-white dark:bg-indigo-600 dark:border-indigo-600' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-800'}`}
+                    className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${role === 'admin' ? 'bg-slate-950 border-slate-950 text-white dark:bg-indigo-600 dark:border-indigo-600' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 dark:text-slate-300'}`}
                   >
                     <ShieldAlert className="w-3.5 h-3.5" /> Workspace Admin
                   </button>
                   <button
                     type="button"
                     onClick={() => setRole('worker')}
-                    className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${role === 'worker' ? 'bg-slate-950 border-slate-950 text-white dark:bg-indigo-600 dark:border-indigo-600' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-800'}`}
+                    className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${role === 'worker' ? 'bg-slate-950 border-slate-950 text-white dark:bg-indigo-600 dark:border-indigo-600' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 dark:text-slate-300'}`}
                   >
                     <Briefcase className="w-3.5 h-3.5" /> Org Worker
                   </button>

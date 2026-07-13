@@ -22,26 +22,26 @@ export default function Analytics() {
       title: 'Total Tracked Logs',
       value: totalTasks,
       icon: <ListTodo className="w-4 h-4 text-indigo-600" />,
-      bg: 'bg-indigo-50/60 border-indigo-100',
+      bg: 'bg-indigo-50/60 border-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-900/60',
     },
     {
       title: 'Urgency Threshold',
       value: highPriorityTasks,
       icon: <AlertCircle className="w-4 h-4 text-rose-600" />,
-      bg: 'bg-rose-50/60 border-rose-100',
+      bg: 'bg-rose-50/60 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900/60',
       subtitle: 'High Priority items locked',
     },
     {
       title: 'Completed Nodes',
       value: doneTasks,
       icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,
-      bg: 'bg-emerald-50/60 border-emerald-100',
+      bg: 'bg-emerald-50/60 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/60',
     },
     {
       title: 'Efficiency Vector',
       value: `${completionRate}%`,
       icon: <TrendingUp className="w-4 h-4 text-amber-600" />,
-      bg: 'bg-amber-50/60 border-amber-100',
+      bg: 'bg-amber-50/60 border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/60',
       subtitle: 'Overall execution rate',
     },
   ];
@@ -51,7 +51,7 @@ export default function Analytics() {
       {metricCards.map((card, idx) => (
         <div 
           key={idx}
-          className={`p-4 bg-white border ${card.bg} rounded-2xl shadow-sm transition-all duration-300 hover:shadow-md flex flex-col justify-between`}
+          className={`p-4 bg-white border ${card.bg} rounded-2xl shadow-sm transition-all duration-300 hover:shadow-md flex flex-col justify-between dark:bg-slate-900 dark:hover:bg-slate-800`}
         >
           <div className="flex items-center justify-between gap-2 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -60,7 +60,7 @@ export default function Analytics() {
             {card.icon}
           </div>
           <div>
-            <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none">
+            <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none dark:text-slate-100">
               {card.value}
             </h3>
             {card.subtitle && (
