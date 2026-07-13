@@ -283,7 +283,7 @@ export function TaskProvider({ children }) {
     const fetchOrgMembers = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, username, role')
+        .select('*')
         .eq('org_id', profile.org_id);
       if (data) {
         dispatch({ type: 'SET_ORG_MEMBERS', payload: data });
