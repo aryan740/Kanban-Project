@@ -4,22 +4,19 @@ import Card from './Card';
 
 export default function Column({ id, title, borderColor, onEditTask }) {
   const { state } = useTasks();
+  const searchQuery = state.searchQuery?.trim().toLowerCase() || '';
+  const isSearchActive = searchQuery.length > 0;
 
-  // Computational filtering logic for search and priority matrices
+  // Keep search visual-only: filter by structural criteria only.
   const filteredTasks = state.tasks.filter(task => {
     // 1. Column Status Check
     const matchesStatus = task.status === id;
-    
-    // 2. Search Query Check (Case-Insensitive search on Title & Description)
-    const matchesSearch = 
-      task.title.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(state.searchQuery.toLowerCase());
-      
-    // 3. Advanced Priority Filter Check
+
+    // 2. Advanced Priority Filter Check
     const matchesPriority = 
       state.filters.priority === 'all' || task.priority === state.filters.priority;
 
-    return matchesStatus && matchesSearch && matchesPriority;
+    return matchesStatus && matchesPriority;
   });
 
   return (
@@ -46,7 +43,9 @@ export default function Column({ id, title, borderColor, onEditTask }) {
             <Card 
               key={task.id} 
               task={task} 
-              onEdit={onEditTask} 
+              onEdit={onEditTask}
+              isSearchActive={isSearchActive}
+              isSearchMatch={!isSearchActive || task.title?.toLowerCase().includes(searchQuery) || task.description?.toLowerCase().includes(searchQuery)}
             />
           ))
         )}

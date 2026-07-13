@@ -8,7 +8,7 @@ const PRIORITY_THEMES = {
   low: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
 };
 
-export default function Card({ task, onOpenModal, onOpenAudit }) {
+export default function Card({ task, onOpenModal, onOpenAudit, isSearchActive = false, isSearchMatch = true }) {
   const { dispatch, user, profile } = useTasks();
   
   const subtasks = task.subtasks || [];
@@ -54,7 +54,7 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
     <div
       draggable={canUpdate}
       onDragStart={handleDragStart}
-      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl p-4 shadow-sm dark:shadow-none group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${timeline.styles} ${!canUpdate ? 'opacity-70 cursor-not-allowed' : ''}`}
+      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl p-4 shadow-sm dark:shadow-none group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-[background-color,border-color,box-shadow,opacity,transform,filter] duration-200 cursor-grab active:cursor-grabbing select-none ${timeline.styles} ${isSearchActive ? (isSearchMatch ? 'opacity-100 ring-1 ring-indigo-300/60 dark:ring-indigo-500/50 shadow-md shadow-indigo-100/40 dark:shadow-indigo-900/30' : 'opacity-30 scale-[0.98] blur-[1px]') : ''} ${!canUpdate ? `cursor-not-allowed ${(!isSearchActive || isSearchMatch) ? 'opacity-70' : ''}` : ''}`}
     >
       {/* Upper Meta Node */}
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -124,7 +124,7 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
             <span>{completedSubtasks}/{subtasks.length}</span>
           </div>
           <div className="w-full h-1 bg-slate-200/60 dark:bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-indigo-600 dark:bg-indigo-500 rounded-full transition-all duration-300" style={{ width: `${subtaskPercent}%` }} />
+            <div className="h-full bg-indigo-600 dark:bg-indigo-500 rounded-full transition-[width] duration-300" style={{ width: `${subtaskPercent}%` }} />
           </div>
         </div>
       )}

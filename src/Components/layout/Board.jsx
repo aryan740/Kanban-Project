@@ -13,6 +13,8 @@ const COLUMNS = [
 export default function Board({ onOpenModal, onOpenAudit }) {
   const { state, dispatch, profile } = useTasks();
   const [activeOverColumn, setActiveOverColumn] = useState(null);
+  const searchQuery = state.searchQuery?.trim().toLowerCase() || '';
+  const isSearchActive = searchQuery.length > 0;
 
   // Structural Guard: Keep all active items mapped so they can fade out smoothly rather than vanishing from DOM
   const activeTasks = (state.tasks || []).filter(task => {
@@ -68,7 +70,7 @@ export default function Board({ onOpenModal, onOpenAudit }) {
             onDragOver={(e) => handleDragOver(e, col.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, col.id)}
-            className={`flex flex-col max-h-[75vh] rounded-2xl p-3.5 bg-slate-100/70 border border-slate-200/40 transition-all duration-200 min-h-[340px] dark:bg-slate-900 dark:border-slate-700 ${
+            className={`flex flex-col max-h-[75vh] rounded-2xl p-3.5 bg-slate-100/70 border border-slate-200/40 transition-[background-color,border-color,box-shadow,transform] duration-200 min-h-[340px] dark:bg-slate-900 dark:border-slate-700 ${
               activeOverColumn === col.id ? 'bg-indigo-50/50 border-dashed border-indigo-400/80 shadow-inner scale-[1.01] dark:bg-indigo-950/30 dark:border-indigo-500' : ''
             }`}
           >
@@ -91,7 +93,9 @@ export default function Board({ onOpenModal, onOpenAudit }) {
                     key={task.id} 
                     task={task} 
                     onOpenModal={onOpenModal} 
-                    onOpenAudit={onOpenAudit} 
+                    onOpenAudit={onOpenAudit}
+                    isSearchActive={isSearchActive}
+                    isSearchMatch={!isSearchActive || task.title?.toLowerCase().includes(searchQuery) || task.description?.toLowerCase().includes(searchQuery)}
                   />
                 ))
               ) : (
