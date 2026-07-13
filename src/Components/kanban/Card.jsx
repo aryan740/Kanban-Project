@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTasks } from '../../context/TaskContext';
+import { canManageOrganization, canUpdateTask, useTasks } from '../../Context/TaskContext';
 import { Calendar, Edit3, Trash2, History, User, AlertTriangle } from 'lucide-react';
 
 const PRIORITY_THEMES = {
@@ -36,10 +36,11 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
   const timeline = getTimelineStatus();
 
   // 🛡️ RBAC Authorization Guard
-  const hasAccess = profile?.role === 'admin' || task.assignedTo === profile?.username || !task.assignedTo;
+  const canUpdate = canUpdateTask(task, profile);
+  const canDelete = canManageOrganization(profile?.role);
 
   const handleDragStart = (e) => {
-    if (!hasAccess) {
+    if (!canUpdate) {
       e.preventDefault();
       return alert('RBAC Access Violation: Enterprise Workers can only drag tasks assigned to their account node.');
     }
@@ -49,9 +50,9 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
 
   return (
     <div
-      draggable={hasAccess}
+      draggable={canUpdate}
       onDragStart={handleDragStart}
-      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800/80 rounded-2xl p-4 shadow-sm group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${timeline.styles} ${!hasAccess ? 'opacity-70 cursor-not-allowed' : ''}`}
+      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800/80 rounded-2xl p-4 shadow-sm group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${timeline.styles} ${!canUpdate ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       {/* Upper Meta Node */}
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -70,15 +71,15 @@ export default function Card({ task, onOpenModal, onOpenAudit }) {
             <History className="w-3.5 h-3.5" />
           </button>
           
-          {hasAccess && (
+          {canUpdate && (
             <>
-              <button 
+              {canDelete && <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onOpenModal(task); }}
                 className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-              </button>
+              </button>}
               <button 
                 type="button"
                 onClick={(e) => { 

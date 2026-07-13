@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { useTasks } from '../../context/TaskContext';
+import { canAssignTasks, canUpdateTask, useTasks } from '../../Context/TaskContext';
 import { X, Plus, Trash2, Calendar, UserCheck } from 'lucide-react';
 
 export default function Modal({ mode, taskToEdit, onClose }) {
   const { state, dispatch, profile } = useTasks();
+  const canAssign = canAssignTasks(profile?.role);
+  const canEditTask = mode === 'create' ? canAssign : canUpdateTask(taskToEdit, profile);
+  const statusOnly = mode === 'edit' && profile?.role === 'employee';
 
   // 1. Initial State Hydration with strict metadata parameters mappings
   const [title, setTitle] = useState(mode === 'edit' && taskToEdit ? taskToEdit.title : '');
@@ -40,11 +43,13 @@ export default function Modal({ mode, taskToEdit, onClose }) {
   // Main Submit Core Orchestration Engine
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!canEditTask) return;
     if (!title.trim()) return alert('Issue Title is strictly mandated for operations.');
 
     const currentOperator = profile?.username || 'Authorized Operator';
 
     if (mode === 'create') {
+      if (!canAssign) return;
       const newTask = {
         id: `task-${Date.now()}`,
         title: title.trim(),
@@ -61,13 +66,13 @@ export default function Modal({ mode, taskToEdit, onClose }) {
     } else if (mode === 'edit' && taskToEdit) {
       const updatedTask = {
         ...taskToEdit,
-        title: title.trim(),
-        description: description.trim(),
+        title: statusOnly ? taskToEdit.title : title.trim(),
+        description: statusOnly ? taskToEdit.description : description.trim(),
         status,
-        priority,
-        assignedTo,
-        dueDate,
-        subtasks,
+        priority: statusOnly ? taskToEdit.priority : priority,
+        assignedTo: statusOnly ? taskToEdit.assignedTo : assignedTo,
+        dueDate: statusOnly ? taskToEdit.dueDate : dueDate,
+        subtasks: statusOnly ? taskToEdit.subtasks : subtasks,
         operator: currentOperator
       };
       
@@ -108,6 +113,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
               required
+              disabled={statusOnly}
             />
           </div>
 
@@ -119,6 +125,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white resize-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
+              disabled={statusOnly}
             />
           </div>
 
@@ -130,6 +137,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
+                disabled={statusOnly}
               >
                 <option value="backlog">Backlog</option>
                 <option value="todo">To Do</option>
@@ -154,7 +162,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
           </div>
 
           {/* New Enterprise Grid Input Segment: Assignee and Due Date Mapping */}
-          <div className="grid grid-cols-2 gap-4 border-t border-slate-100/80 dark:border-slate-800/80 pt-4">
+          {canAssign && <div className="grid grid-cols-2 gap-4 border-t border-slate-100/80 dark:border-slate-800/80 pt-4">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5 flex items-center gap-1">
                 <UserCheck className="w-3 h-3 text-indigo-500" /> Assign Resource
@@ -184,10 +192,10 @@ export default function Modal({ mode, taskToEdit, onClose }) {
                 className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
               />
             </div>
-          </div>
+          </div>}
 
           {/* Checklist Engine Block */}
-          <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-4 space-y-2">
+          {!statusOnly && <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-4 space-y-2">
             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-0.5">Target Action Checklist</label>
             
             <div className="flex gap-2">
@@ -232,7 +240,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Actions Footer */}
           <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-4 flex items-center justify-end gap-2 sticky bottom-0 bg-white dark:bg-slate-900 pb-1">

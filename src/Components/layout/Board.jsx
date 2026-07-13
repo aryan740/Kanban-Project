@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useTasks } from '../../context/TaskContext';
-import Card from '../shared/Card';
+import { canUpdateTask, useTasks } from '../../Context/TaskContext';
+import Card from '../kanban/Card';
 
 const COLUMNS = [
   { id: 'backlog', title: 'Backlog', accent: 'bg-slate-400' },
@@ -11,12 +11,13 @@ const COLUMNS = [
 ];
 
 export default function Board({ onOpenModal, onOpenAudit }) {
-  const { state, dispatch, user } = useTasks();
+  const { state, dispatch, profile } = useTasks();
   const [activeOverColumn, setActiveOverColumn] = useState(null);
 
   // Structural Guard: Keep all active items mapped so they can fade out smoothly rather than vanishing from DOM
   const activeTasks = (state.tasks || []).filter(task => {
     if (task.isDeleted) return false;
+    if (profile?.role === 'employee' && task.assignedTo !== profile.username) return false;
     // Keep priority filters separated from search fading rules
     return state.filters.priority === 'all' || task.priority === state.filters.priority;
   });
@@ -34,13 +35,15 @@ export default function Board({ onOpenModal, onOpenAudit }) {
     e.preventDefault();
     setActiveOverColumn(null);
     const taskId = e.dataTransfer.getData('text/plain');
+    const task = state.tasks.find((candidate) => candidate.id === taskId);
+    if (!task || !canUpdateTask(task, profile)) return;
     if (taskId) {
       dispatch({
         type: 'UPDATE_TASK_STATUS',
         payload: { 
           id: taskId, 
           newStatus: targetStatus,
-          operator: user?.email || 'Authorized Operator'
+          operator: profile?.username || 'Authorized Operator'
         }
       });
     }
