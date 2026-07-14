@@ -10,7 +10,8 @@ const initialState = {
   filters: { priority: 'all' },
   theme: 'system',
   orgMembers: [],
-  activePresence: []
+  activePresence: [],
+  orgName: null // State node tracking organization name parameter
 };
 
 export const ROLES = Object.freeze({
@@ -175,6 +176,9 @@ function taskReducer(state, action) {
 
     case 'SET_PRESENCE':
       return { ...state, activePresence: action.payload };
+
+    case 'SET_ORG_NAME':
+      return { ...state, orgName: action.payload };
       
     default:
       return state;
@@ -187,8 +191,6 @@ export function TaskProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // The saved preference is separate from its resolved colour scheme so that
-  // System mode keeps following OS changes without overwriting the preference.
   useEffect(() => {
     const savedTheme = localStorage.getItem('synapse_theme');
     dispatch({ type: 'SET_THEME', payload: ['light', 'dark', 'system'].includes(savedTheme) ? savedTheme : 'system' });
@@ -222,8 +224,6 @@ export function TaskProvider({ children }) {
     }
   }, []);
 
-  // Auth is hydrated once from Supabase's persisted session. Token refreshes are
-  // handled by the client and do not trigger an unnecessary full profile reset.
   useEffect(() => {
     let isMounted = true;
 
@@ -290,12 +290,25 @@ export function TaskProvider({ children }) {
       }
     };
 
+    // Extract targeted name metadata configurations from the dedicated organizations table
+    const fetchOrganizationMetadata = async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', profile.org_id)
+        .maybeSingle();
+      if (!error && data) {
+        dispatch({ type: 'SET_ORG_NAME', payload: data.name || null });
+      }
+    };
+
     fetchOrgMatrixData();
     fetchOrgMembers();
+    fetchOrganizationMetadata();
 
     // 4. Collaborative Real-time Broadcast Pipeline Integration
     const channel = supabase.channel(`org_${profile.org_id}`, {
-      config: { presence: { key: profile.username || user.email } }
+      config: { presence: { key: profile.username || user?.email || 'Unknown User' } }
     });
 
     channel
@@ -307,6 +320,17 @@ export function TaskProvider({ children }) {
       }, (payload) => {
         if (payload.new && payload.new.tasks) {
           dispatch({ type: 'SET_TASKS', payload: payload.new.tasks });
+        }
+      })
+      // Listen dynamically for live data shifts on the organizations record row
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'organizations',
+        filter: `id=eq.${profile.org_id}`
+      }, (payload) => {
+        if (payload.new) {
+          dispatch({ type: 'SET_ORG_NAME', payload: payload.new.name || null });
         }
       })
       .on('presence', { event: 'sync' }, () => {

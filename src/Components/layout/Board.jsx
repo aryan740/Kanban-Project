@@ -95,7 +95,7 @@ export default function Board({ onOpenModal, onOpenAudit }) {
                     onOpenModal={onOpenModal} 
                     onOpenAudit={onOpenAudit}
                     isSearchActive={isSearchActive}
-                    isSearchMatch={!isSearchActive || task.title?.toLowerCase().includes(searchQuery) || task.description?.toLowerCase().includes(searchQuery)}
+                    isSearchMatch={!isSearchActive || task.title?.toLowerCase().includes(searchQuery) || (task.description || '').toLowerCase().includes(searchQuery)}
                   />
                 ))
               ) : (

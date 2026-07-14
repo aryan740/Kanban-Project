@@ -54,7 +54,9 @@ export default function Card({ task, onOpenModal, onOpenAudit, isSearchActive = 
     <div
       draggable={canUpdate}
       onDragStart={handleDragStart}
-      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl p-4 shadow-sm dark:shadow-none group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-[background-color,border-color,box-shadow,opacity,transform,filter] duration-200 cursor-grab active:cursor-grabbing select-none ${timeline.styles} ${isSearchActive ? (isSearchMatch ? 'opacity-100 ring-1 ring-indigo-300/60 dark:ring-indigo-500/50 shadow-md shadow-indigo-100/40 dark:shadow-indigo-900/30' : 'opacity-30 scale-[0.98] blur-[1px]') : ''} ${!canUpdate ? `cursor-not-allowed ${(!isSearchActive || isSearchMatch) ? 'opacity-70' : ''}` : ''}`}
+      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl p-4 shadow-sm dark:shadow-none group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-[background-color,border-color,box-shadow,opacity,transform,filter] duration-200 cursor-grab active:cursor-grabbing select-none ${timeline.styles} ${isSearchActive ? (isSearchMatch
+? 'opacity-100 ring-2 ring-indigo-500/30 shadow-lg'
+: 'opacity-25 scale-[0.98] pointer-events-none') : ''} ${!canUpdate ? `cursor-not-allowed ${(!isSearchActive || isSearchMatch) ? 'opacity-70' : ''}` : ''}`}
     >
       {/* Upper Meta Node */}
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -111,7 +113,7 @@ export default function Card({ task, onOpenModal, onOpenAudit, isSearchActive = 
         {task.title}
       </h4>
       {task.description && (
-        <p className="text-[11px] text-slate-400 dark:text-slate-500 line-clamp-2 leading-normal mb-3">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 line-clamp-2 leading-normal mb-3 min-h-[34px]">
           {task.description}
         </p>
       )}
