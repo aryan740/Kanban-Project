@@ -18,7 +18,7 @@ export default function Board({ onOpenModal, onOpenAudit }) {
 
   // Filter tasks based on assignment, active status, and priority
   const activeTasks = (state.tasks || []).filter(task => {
-    if (task.isDeleted) return false;
+    if (task.is_deleted || task.isDeleted) return false;
 
     // Support both snake_case and camelCase for normalized schema compatibility
     const assignedUser = task.assigned_to || task.assignedTo;

@@ -110,8 +110,8 @@ export function TaskProvider({ children }) {
     return () => mediaQuery.removeEventListener('change', applyTheme);
   }, [state.theme]);
 
-  // User Profile Loader
-  const fetchUserProfile = useCallback(async (uid) => {
+  // User Profile Loader with Retry & Fallback
+  const fetchUserProfile = useCallback(async (uid, isRetry = false) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -119,11 +119,63 @@ export function TaskProvider({ children }) {
         .eq('id', uid)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
-      return data;
+      if (error) {
+        if (!isRetry) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          const { data: retryData, error: retryError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', uid)
+            .single();
+
+          if (!retryError && retryData) {
+            setProfile(retryData);
+            return retryData;
+          }
+        }
+        throw error;
+      }
+
+      if (data) {
+        setProfile(data);
+        return data;
+      }
+      throw new Error('No profile data returned');
     } catch (error) {
       console.error('Profile metadata extraction failed:', error.message);
+
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const authUser = authData?.user;
+        
+        if (authUser) {
+          const fallbackProfile = {
+            id: uid,
+            username: authUser.user_metadata?.display_name || authUser.email?.split('@')[0] || 'User',
+            role: 'employee',
+            org_id: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          const { data: createdProfile, error: createError } = await supabase
+            .from('profiles')
+            .upsert([fallbackProfile])
+            .select()
+            .single();
+
+          if (!createError && createdProfile) {
+            setProfile(createdProfile);
+            return createdProfile;
+          }
+
+          setProfile(fallbackProfile);
+          return fallbackProfile;
+        }
+      } catch (fallbackError) {
+        console.error('Fallback profile generation failed:', fallbackError.message);
+      }
+
       setProfile(null);
       return null;
     }
@@ -151,16 +203,23 @@ export function TaskProvider({ children }) {
     initializeSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        setUser(session.user);
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          void fetchUserProfile(session.user.id);
+      (async () => {
+        try {
+          if (session) {
+            setUser(session.user);
+            if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+              await fetchUserProfile(session.user.id);
+            }
+          } else {
+            setUser(null);
+            setProfile(null);
+          }
+        } catch (err) {
+          console.error('Auth state change error:', err.message);
+        } finally {
+          if (isMounted) setLoading(false);
         }
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-      setLoading(false);
+      })();
     });
 
     return () => {
@@ -176,6 +235,7 @@ export function TaskProvider({ children }) {
       .from('tasks')
       .select('*')
       .eq('org_id', orgId)
+      .or('is_deleted.is.null,is_deleted.eq.false')
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -228,7 +288,11 @@ export function TaskProvider({ children }) {
         filter: `org_id=eq.${profile.org_id}`
       }, (payload) => {
         if (payload.new) {
-          dispatch({ type: 'CREATE_TASK', payload: payload.new });
+          if (payload.new.is_deleted === true || payload.new.isDeleted === true) {
+            dispatch({ type: 'DELETE_TASK', payload: { id: payload.new.id } });
+          } else {
+            dispatch({ type: 'CREATE_TASK', payload: payload.new });
+          }
         }
       })
       .on('postgres_changes', {
@@ -238,7 +302,11 @@ export function TaskProvider({ children }) {
         filter: `org_id=eq.${profile.org_id}`
       }, (payload) => {
         if (payload.new) {
-          dispatch({ type: 'EDIT_TASK', payload: payload.new });
+          if (payload.new.is_deleted === true || payload.new.isDeleted === true) {
+            dispatch({ type: 'DELETE_TASK', payload: { id: payload.new.id } });
+          } else {
+            dispatch({ type: 'EDIT_TASK', payload: payload.new });
+          }
         }
       })
       .on('postgres_changes', {
@@ -280,9 +348,28 @@ export function TaskProvider({ children }) {
     };
   }, [profile, user?.email, fetchTasks]);
 
+  // Atomic Audit Log Action Handler
+  const logTaskAction = useCallback(async (taskId, action, details) => {
+    if (!profile?.org_id || !taskId) return;
+    try {
+      await supabase.from('task_logs').insert([{
+        task_id: taskId,
+        org_id: profile.org_id,
+        action,
+        details,
+        operator: profile.username || user?.email || 'Unknown'
+      }]);
+    } catch (err) {
+      console.error('Task audit log insert failed:', err.message);
+    }
+  }, [profile?.org_id, profile?.username, user?.email]);
+
   // Production Action: Atomic Task Status Transition
   const updateTaskStatus = async (taskId, nextStatus) => {
     const previousTasks = state.tasks;
+    const taskObj = state.tasks.find(t => t.id === taskId);
+    const oldStatus = taskObj ? (taskObj.status || 'unknown') : 'unknown';
+
     dispatch({ type: 'UPDATE_TASK_STATUS', payload: { id: taskId, newStatus: nextStatus } });
 
     const { error } = await supabase
@@ -292,9 +379,10 @@ export function TaskProvider({ children }) {
 
     if (error) {
       console.error('RBAC / Network failure updating status:', error.message);
-      // Revert optimistic update if RLS or network fails
       dispatch({ type: 'SET_TASKS', payload: previousTasks });
       alert(`Status update failed: ${error.message}`);
+    } else {
+      await logTaskAction(taskId, 'STATUS_CHANGE', `Moved status from "${oldStatus}" to "${nextStatus}"`);
     }
   };
 
@@ -309,6 +397,7 @@ export function TaskProvider({ children }) {
       priority: taskPayload.priority || 'medium',
       assigned_to: taskPayload.assignedTo || taskPayload.assigned_to || null,
       due_date: taskPayload.dueDate || taskPayload.due_date || null,
+      subtasks: taskPayload.subtasks || [],
       org_id: profile.org_id,
       created_by: user?.id
     };
@@ -326,27 +415,35 @@ export function TaskProvider({ children }) {
     }
 
     dispatch({ type: 'CREATE_TASK', payload: data });
+    await logTaskAction(data.id, 'TASK_CREATED', `Created task "${data.title}"`);
     return { success: true, data };
   };
 
-  // Production Action: Atomic Task Deletion
+  // Production Action: Non-blocking Soft Task Deletion
   const deleteTask = async (taskId) => {
-    const previousTasks = state.tasks;
+    // 1. Instant local removal
     dispatch({ type: 'DELETE_TASK', payload: { id: taskId } });
 
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', taskId);
+    try {
+      // Fire update non-blockingly or concurrently with audit
+      const updatePromise = supabase
+        .from('tasks')
+        .update({ is_deleted: true, updated_at: new Date().toISOString() })
+        .eq('id', taskId);
 
-    if (error) {
-      console.error('Task deletion failed:', error.message);
-      dispatch({ type: 'SET_TASKS', payload: previousTasks });
-      alert(`Deletion rejected by server policy: ${error.message}`);
-      return { success: false, error };
+      const logPromise = logTaskAction(taskId, 'TASK_DELETED', 'Soft-deleted task');
+
+      const [{ error }] = await Promise.all([updatePromise, logPromise]);
+
+      if (error) throw error;
+      return { success: true };
+    } catch (err) {
+      console.error("Soft delete failed:", err);
+      // Re-fetch to sync clean server state only if failed
+      if (profile?.org_id) fetchTasks(profile.org_id);
+      alert("Could not delete task: " + (err.message || "Network/permission error"));
+      return { success: false, error: err };
     }
-
-    return { success: true };
   };
 
   return (
@@ -360,6 +457,7 @@ export function TaskProvider({ children }) {
         createTask,
         updateTaskStatus,
         deleteTask,
+        logTaskAction,
         fetchTasks: () => fetchTasks(profile?.org_id)
       }}
     >

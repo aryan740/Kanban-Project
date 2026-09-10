@@ -12,6 +12,7 @@ export default function Auth() {
   const [orgName, setOrgName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -19,6 +20,7 @@ export default function Auth() {
 
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     try {
       if (isSignUp) {
@@ -57,10 +59,10 @@ export default function Auth() {
           resolvedOrgId = generatedOrgId;
         }
 
-        // 3. Create user profile in profiles table
+        // 3. Create user profile in profiles table (Must complete before proceeding)
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert([{
+          .upsert([{
             id: authData.user.id,
             username: username.trim(),
             role: role === 'admin' ? 'admin' : 'employee',
@@ -68,7 +70,16 @@ export default function Auth() {
             updated_at: new Date().toISOString()
           }]);
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Profile insertion error:', profileError.message);
+          throw new Error(`Profile setup failed: ${profileError.message}`);
+        }
+
+        // 4. If Supabase email confirmation is required, inform user
+        if (!authData.session) {
+          setSuccessMsg('Please check your email to confirm your account before logging in.');
+          return;
+        }
 
         if (role === 'admin') {
           alert(`Organization created! Your Org ID is: ${resolvedOrgId}\n(You can copy this from Organization settings later)`);
@@ -110,6 +121,12 @@ export default function Auth() {
         {errorMsg && (
           <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 p-3 rounded-xl text-xs font-semibold mb-4 text-center">
             {errorMsg}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-300 p-3 rounded-xl text-xs font-semibold mb-4 text-center">
+            {successMsg}
           </div>
         )}
 

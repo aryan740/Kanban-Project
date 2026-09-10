@@ -41,7 +41,7 @@ export default function Card({ task, onOpenModal, onOpenAudit, isSearchActive = 
 
   // Strict RBAC Guards
   const canUpdate = canUpdateTask(task, profile);
-  const canDelete = canManageOrganization(profile?.role);
+  const canDelete = profile?.role === 'admin' || profile?.role === 'manager' || canManageOrganization(profile?.role);
 
   const handleDragStart = (e) => {
     if (!canUpdate) {
@@ -52,28 +52,18 @@ export default function Card({ task, onOpenModal, onOpenAudit, isSearchActive = 
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDelete = async (e) => {
-    e.stopPropagation();
-    if (!canDelete) {
-      return alert('RBAC Access Violation: Only administrators can delete tasks.');
-    }
-
-    if (window.confirm('Permanently delete this task from the workspace?')) {
-      await deleteTask(task.id);
-    }
-  };
-
   return (
     <div
       draggable={canUpdate}
       onDragStart={handleDragStart}
+      onClick={() => { if (canUpdate) onOpenModal(task); }}
       className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl p-4 shadow-sm dark:shadow-none group relative border-l-4 hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-[background-color,border-color,box-shadow,opacity,transform,filter] duration-200 select-none ${timeline.styles} ${
         isSearchActive
           ? isSearchMatch
             ? 'opacity-100 ring-2 ring-indigo-500/30 shadow-lg'
             : 'opacity-25 scale-[0.98] pointer-events-none'
           : ''
-      } ${canUpdate ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-75'}`}
+      } ${canUpdate ? 'cursor-pointer' : 'cursor-not-allowed opacity-75'}`}
     >
       {/* Upper Meta Node */}
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -82,9 +72,16 @@ export default function Card({ task, onOpenModal, onOpenAudit, isSearchActive = 
         </span>
 
         {/* Actions Panel */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 bg-white dark:bg-slate-900 pl-2">
+        <div 
+          className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 bg-white dark:bg-slate-900 pl-2"
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onOpenAudit(task); }}
             className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors cursor-pointer"
             title="Inspect System Logs"
@@ -92,12 +89,14 @@ export default function Card({ task, onOpenModal, onOpenAudit, isSearchActive = 
             <History className="w-3.5 h-3.5" />
           </button>
 
-          {canUpdate && canDelete && (
+          {canUpdate && (
             <button
               type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onOpenModal(task); }}
               className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors cursor-pointer"
-              title="Edit Task"
+              title={canDelete ? "Edit Task" : "View / Progress Task"}
             >
               <Edit3 className="w-3.5 h-3.5" />
             </button>
@@ -106,7 +105,14 @@ export default function Card({ task, onOpenModal, onOpenAudit, isSearchActive = 
           {canDelete && (
             <button
               type="button"
-              onClick={handleDelete}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Delete clicked for task:", task.id);
+                deleteTask(task.id);
+              }}
               className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md transition-colors cursor-pointer"
               title="Delete Task"
             >
