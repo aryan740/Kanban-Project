@@ -11,43 +11,51 @@ const COLUMNS = [
 ];
 
 export default function Board({ onOpenModal, onOpenAudit }) {
-  const { state, dispatch, profile } = useTasks();
+  const { state, updateTaskStatus, profile } = useTasks();
   const [activeOverColumn, setActiveOverColumn] = useState(null);
   const searchQuery = state.searchQuery?.trim().toLowerCase() || '';
   const isSearchActive = searchQuery.length > 0;
 
-  // Structural Guard: Keep all active items mapped so they can fade out smoothly rather than vanishing from DOM
+  // Filter tasks based on assignment, active status, and priority
   const activeTasks = (state.tasks || []).filter(task => {
     if (task.isDeleted) return false;
-    if (profile?.role === 'employee' && task.assignedTo !== profile.username) return false;
-    // Keep priority filters separated from search fading rules
+
+    // Support both snake_case and camelCase for normalized schema compatibility
+    const assignedUser = task.assigned_to || task.assignedTo;
+    if (profile?.role === 'employee' && assignedUser !== profile.username) {
+      return false;
+    }
+
     return state.filters.priority === 'all' || task.priority === state.filters.priority;
   });
 
   const handleDragOver = (e, columnId) => {
     e.preventDefault();
-    setActiveOverColumn(columnId);
+    e.dataTransfer.dropEffect = 'move';
+    if (activeOverColumn !== columnId) {
+      setActiveOverColumn(columnId);
+    }
   };
 
   const handleDragLeave = () => {
     setActiveOverColumn(null);
   };
 
-  const handleDrop = (e, targetStatus) => {
+  const handleDrop = async (e, targetStatus) => {
     e.preventDefault();
     setActiveOverColumn(null);
+
     const taskId = e.dataTransfer.getData('text/plain');
+    if (!taskId) return;
+
     const task = state.tasks.find((candidate) => candidate.id === taskId);
-    if (!task || !canUpdateTask(task, profile)) return;
-    if (taskId) {
-      dispatch({
-        type: 'UPDATE_TASK_STATUS',
-        payload: { 
-          id: taskId, 
-          newStatus: targetStatus,
-          operator: profile?.username || 'Authorized Operator'
-        }
-      });
+    if (!task || !canUpdateTask(task, profile)) {
+      alert('Access Denied: You do not have permission to modify this task.');
+      return;
+    }
+
+    if (task.status !== targetStatus) {
+      await updateTaskStatus(taskId, targetStatus);
     }
   };
 
@@ -57,10 +65,10 @@ export default function Board({ onOpenModal, onOpenAudit }) {
         const columnTasks = activeTasks.filter(t => {
           const s = t.status ? t.status.toLowerCase().replace('-', '_').trim() : '';
           const targetId = col.id.toLowerCase();
-          
+
           if (targetId === 'review' && (s === 'qa' || s === 'review' || s === 'code_review')) return true;
           if (targetId === 'in_progress' && (s === 'in_progress' || s === 'in-progress')) return true;
-          
+
           return s === targetId;
         });
 
@@ -71,7 +79,9 @@ export default function Board({ onOpenModal, onOpenAudit }) {
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, col.id)}
             className={`flex flex-col max-h-[75vh] rounded-2xl p-3.5 bg-slate-100/70 border border-slate-200/40 transition-[background-color,border-color,box-shadow,transform] duration-200 min-h-[340px] dark:bg-slate-900 dark:border-slate-700 ${
-              activeOverColumn === col.id ? 'bg-indigo-50/50 border-dashed border-indigo-400/80 shadow-inner scale-[1.01] dark:bg-indigo-950/30 dark:border-indigo-500' : ''
+              activeOverColumn === col.id
+                ? 'bg-indigo-50/50 border-dashed border-indigo-400/80 shadow-inner scale-[1.01] dark:bg-indigo-950/30 dark:border-indigo-500'
+                : ''
             }`}
           >
             <div className="flex items-center justify-between mb-3 px-1">
@@ -89,13 +99,17 @@ export default function Board({ onOpenModal, onOpenAudit }) {
             <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin pb-4">
               {columnTasks.length > 0 ? (
                 columnTasks.map(task => (
-                  <Card 
-                    key={task.id} 
-                    task={task} 
-                    onOpenModal={onOpenModal} 
+                  <Card
+                    key={task.id}
+                    task={task}
+                    onOpenModal={onOpenModal}
                     onOpenAudit={onOpenAudit}
                     isSearchActive={isSearchActive}
-                    isSearchMatch={!isSearchActive || task.title?.toLowerCase().includes(searchQuery) || (task.description || '').toLowerCase().includes(searchQuery)}
+                    isSearchMatch={
+                      !isSearchActive ||
+                      task.title?.toLowerCase().includes(searchQuery) ||
+                      (task.description || '').toLowerCase().includes(searchQuery)
+                    }
                   />
                 ))
               ) : (

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { Layers, Lock, Mail, ArrowRight, UserPlus, LogIn, ShieldAlert, Briefcase } from 'lucide-react';
+import { Layers, Lock, Mail, ArrowRight, UserPlus, LogIn, Building2, User } from 'lucide-react';
 
 export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState('admin'); // admin or worker selector state
-  const [targetOrgId, setTargetOrgId] = useState(''); // Only evaluated if target is worker role
+  const [role, setRole] = useState('admin'); // 'admin' = create org, 'employee' = join org
+  const [targetOrgId, setTargetOrgId] = useState('');
+  const [orgName, setOrgName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -21,140 +22,170 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        // Step 1: Initialize Auth instance state
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({ 
-          email, 
+        if (role === 'admin' && !orgName.trim()) {
+          throw new Error('Please provide an Organization Name.');
+        }
+        if (role === 'employee' && !targetOrgId.trim()) {
+          throw new Error('Please provide the Organization ID given by your Admin.');
+        }
+
+        // 1. Sign up user in Supabase Auth
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email,
           password,
-          options: { data: { display_name: username } }
+          options: { data: { display_name: username.trim() } }
         });
-        
+
         if (signUpError) throw signUpError;
+        if (!authData?.user) throw new Error('Signup failed. Please try again.');
 
-        if (authData?.user) {
-          // Generate deterministic Organization links
-          const resolvedOrgId = role === 'admin' ? `org_${Math.random().toString(36).substr(2, 9)}` : targetOrgId.trim();
-          
-          if (role === 'worker' && !resolvedOrgId) {
-            throw new Error('Valid target Organization Token/ID is mandatory for Worker deployment.');
-          }
+        let resolvedOrgId = targetOrgId.trim();
 
-          // Step 2: Push structural details directly into profiles schema table
-          const { error: profileError } = await supabase
-            .from('profiles')
+        // 2. If Admin, create the organization row first
+        if (role === 'admin') {
+          const generatedOrgId = `org_${Math.random().toString(36).substring(2, 10)}`;
+          const { error: orgError } = await supabase
+            .from('organizations')
             .insert([{
-              id: authData.user.id,
-              username: username,
-              role: role,
-              org_id: resolvedOrgId,
+              id: generatedOrgId,
+              name: orgName.trim(),
+              created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }]);
 
-          if (profileError) throw profileError;
+          if (orgError) throw orgError;
+          resolvedOrgId = generatedOrgId;
+        }
 
-          // Step 3: Initialize the Org Matrix Row if User registers as Admin
-          if (role === 'admin') {
-            const { error: boardError } = await supabase
-              .from('boards')
-              .insert([{ org_id: resolvedOrgId, tasks: [], updated_at: new Date().toISOString() }]);
-            if (boardError) console.error("Initial Board Matrix creation skipped:", boardError.message);
-            
-            alert(`Organization created! Token for your Workers to join: ${resolvedOrgId}`);
-          } else {
-            alert('Worker registration query successful! Awaiting verification link validation.');
-          }
+        // 3. Create user profile in profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: authData.user.id,
+            username: username.trim(),
+            role: role === 'admin' ? 'admin' : 'employee',
+            org_id: resolvedOrgId,
+            updated_at: new Date().toISOString()
+          }]);
+
+        if (profileError) throw profileError;
+
+        if (role === 'admin') {
+          alert(`Organization created! Your Org ID is: ${resolvedOrgId}\n(You can copy this from Organization settings later)`);
         }
       } else {
+        // Sign In
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
     } catch (err) {
-      setErrorMsg(err.message || 'System identity validation failed.');
+      setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-slate-950 px-4 relative overflow-hidden select-none transition-colors duration-300">
-      
-      {/* 3D Ambient Blur Lighting Vector Layers */}
-      <div className="absolute top-[-25%] left-[-15%] w-[600px] h-[600px] bg-indigo-200/40 dark:bg-indigo-900/20 rounded-full blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-25%] right-[-15%] w-[500px] h-[500px] bg-sky-200/30 dark:bg-sky-900/10 rounded-full blur-[110px] pointer-events-none" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-35 dark:opacity-20 pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 relative overflow-hidden select-none transition-colors duration-300">
+      {/* Background Glows */}
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-indigo-200/40 dark:bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-sky-200/30 dark:bg-sky-900/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Structured Glassmorphic 3D Component Node */}
-      <div className="w-full max-w-[400px] bg-white/85 dark:bg-slate-900/80 border border-white/80 dark:border-slate-700 rounded-[24px] p-7 shadow-[0_25px_50px_-12px_rgba(15,23,42,0.08)] dark:shadow-[0_25px_50px_-12px_rgba(15,23,42,0.45)] backdrop-blur-lg relative z-10 transform transition-all duration-300">
+      {/* Main Card */}
+      <div className="w-full max-w-[420px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-xl relative z-10">
         
-        {/* Central Clean Branding Core */}
+        {/* Branding */}
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="bg-indigo-600 text-white p-2.5 rounded-xl shadow-[0_6px_16px_-4px_rgba(79,70,229,0.35)] mb-3">
-            <Layers className="w-[18px] h-[18px]" />
+          <div className="bg-indigo-600 text-white p-3 rounded-2xl shadow-md shadow-indigo-600/20 mb-3">
+            <Layers className="w-5 h-5" />
           </div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Synapse Enterprise Matrix</h2>
-          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-400 max-w-[260px] mt-1 leading-normal">
-            High-performance workspace orchestration module with unified user access rules.
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            {isSignUp ? 'Create an Account' : 'Welcome to Synapse'}
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            {isSignUp ? 'Get started with your team workspace' : 'Sign in to manage your tasks'}
           </p>
         </div>
 
         {errorMsg && (
-          <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-100/60 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 p-2.5 rounded-xl text-[11px] font-semibold mb-4 text-center">
+          <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 p-3 rounded-xl text-xs font-semibold mb-4 text-center">
             {errorMsg}
           </div>
         )}
 
-        {/* Action Direct Input Fields Stack */}
-        <form onSubmit={handleAuth} className="space-y-3">
+        <form onSubmit={handleAuth} className="space-y-3.5">
           {isSignUp && (
             <>
               <div>
-                <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
-                  Display Username
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                  Username
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="e.g., aryan_admin"
-                  className="w-full px-3.5 py-2 bg-slate-50/60 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all"
+                  placeholder="e.g. aryan"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white"
                   required
                 />
               </div>
 
-              {/* Dynamic RBAC Selector Switch Matrix */}
               <div>
-                <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
-                  Corporate Security Role
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                  Account Type
                 </label>
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   <button
                     type="button"
                     onClick={() => setRole('admin')}
-                    className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${role === 'admin' ? 'bg-slate-950 border-slate-950 text-white dark:bg-indigo-600 dark:border-indigo-600' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 dark:text-slate-300'}`}
+                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      role === 'admin'
+                        ? 'bg-slate-900 border-slate-900 text-white dark:bg-indigo-600 dark:border-indigo-600'
+                        : 'bg-transparent text-slate-600 border-slate-200 dark:border-slate-700 dark:text-slate-400'
+                    }`}
                   >
-                    <ShieldAlert className="w-3.5 h-3.5" /> Workspace Admin
+                    <Building2 className="w-3.5 h-3.5" /> New Org (Admin)
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRole('worker')}
-                    className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${role === 'worker' ? 'bg-slate-950 border-slate-950 text-white dark:bg-indigo-600 dark:border-indigo-600' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 dark:text-slate-300'}`}
+                    onClick={() => setRole('employee')}
+                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      role === 'employee'
+                        ? 'bg-slate-900 border-slate-900 text-white dark:bg-indigo-600 dark:border-indigo-600'
+                        : 'bg-transparent text-slate-600 border-slate-200 dark:border-slate-700 dark:text-slate-400'
+                    }`}
                   >
-                    <Briefcase className="w-3.5 h-3.5" /> Org Worker
+                    <User className="w-3.5 h-3.5" /> Join Team
                   </button>
                 </div>
               </div>
 
-              {role === 'worker' && (
+              {role === 'admin' ? (
                 <div>
-                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
-                    Target Organization Token
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                    Organization Name
+                  </label>
+                  <input
+                    type="text"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    placeholder="e.g. Acme Studio"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white"
+                    required
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                    Organization ID
                   </label>
                   <input
                     type="text"
                     value={targetOrgId}
                     onChange={(e) => setTargetOrgId(e.target.value)}
-                    placeholder="Paste org_xxxxx token given by your Admin"
-                    className="w-full px-3.5 py-2 bg-slate-50/60 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all placeholder:text-rose-400/70"
-                    required={role === 'worker'}
+                    placeholder="Paste Org ID from your admin"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white"
+                    required
                   />
                 </div>
               )}
@@ -162,34 +193,34 @@ export default function Auth() {
           )}
 
           <div>
-            <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
-              Account Email
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+              Email
             </label>
             <div className="relative">
-              <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@domain.com"
-                className="w-full pl-[40px] pr-4 py-2 bg-slate-50/60 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all"
+                placeholder="name@example.com"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
-              Secure Password
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+              Password
             </label>
             <div className="relative">
-              <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-[40px] pr-4 py-2 bg-slate-50/60 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white"
                 required
               />
             </div>
@@ -198,20 +229,31 @@ export default function Auth() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-slate-950 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-200 dark:disabled:bg-slate-800 mt-4 cursor-pointer"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 mt-4 shadow-sm cursor-pointer disabled:opacity-60"
           >
-            {isSignUp ? <UserPlus className="w-3.5 h-3.5" /> : <LogIn className="w-3.5 h-3.5" />}
-            <span>{loading ? 'Processing...' : isSignUp ? 'Create Corporate Node' : 'Initialize Session'}</span>
-            {!loading && <ArrowRight className="w-3.5 h-3.5 ml-0.5" />}
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : isSignUp ? (
+              <>
+                <UserPlus className="w-4 h-4" /> Sign Up
+              </>
+            ) : (
+              <>
+                <LogIn className="w-4 h-4" /> Sign In
+              </>
+            )}
           </button>
         </form>
 
         <div className="text-center mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
           <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline transition-colors cursor-pointer"
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setErrorMsg('');
+            }}
+            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
           >
-            {isSignUp ? 'Return to Unified Sign In Log' : "Provision New Account Workspace"}
+            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
           </button>
         </div>
 

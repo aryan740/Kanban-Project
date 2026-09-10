@@ -1,29 +1,56 @@
-import React from 'react';
-import { useTasks } from '../../context/TaskContext';
+import React, { useState } from 'react';
+import { useTasks } from '../../Context/TaskContext';
 import Card from './Card';
 
-export default function Column({ id, title, borderColor, onEditTask }) {
-  const { state } = useTasks();
+export default function Column({ id, title, borderColor, onOpenModal, onOpenAudit }) {
+  const { state, updateTaskStatus } = useTasks();
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const searchQuery = state.searchQuery?.trim().toLowerCase() || '';
   const isSearchActive = searchQuery.length > 0;
 
-  // Keep search visual-only: filter by structural criteria only.
   const filteredTasks = state.tasks.filter(task => {
-    // 1. Column Status Check
     const matchesStatus = task.status === id;
-
-    // 2. Advanced Priority Filter Check
-    const matchesPriority = 
+    const matchesPriority =
       state.filters.priority === 'all' || task.priority === state.filters.priority;
 
     return matchesStatus && matchesPriority;
   });
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const taskId = e.dataTransfer.getData('text/plain');
+    if (!taskId) return;
+
+    const draggedTask = state.tasks.find(t => t.id === taskId);
+    if (draggedTask && draggedTask.status !== id) {
+      await updateTaskStatus(taskId, id);
+    }
+  };
+
   return (
-    <div className={`flex flex-col bg-slate-100/70 dark:bg-slate-900 border-t-4 ${borderColor} rounded-b-xl p-3 min-h-[500px] max-h-[85vh] overflow-y-auto shadow-inner dark:shadow-none`}>
-      
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`flex flex-col bg-slate-100/70 dark:bg-slate-900 border-t-4 ${borderColor} rounded-b-xl p-3 min-h-[500px] max-h-[85vh] overflow-y-auto shadow-inner dark:shadow-none transition-colors duration-150 ${
+        isDragOver ? 'ring-2 ring-indigo-500/50 bg-indigo-50/30 dark:bg-slate-800/80' : ''
+      }`}
+    >
       {/* Column Header Metadata */}
-      <div className="flex items-center justify-between mb-4 sticky top-0 bg-slate-50/10 dark:bg-slate-900/80 backdrop-blur-md py-1 z-10">
+      <div className="flex items-center justify-between mb-4 sticky top-0 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md py-1 z-10">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
           {title}
         </span>
@@ -40,12 +67,17 @@ export default function Column({ id, title, borderColor, onEditTask }) {
           </div>
         ) : (
           filteredTasks.map(task => (
-            <Card 
-              key={task.id} 
-              task={task} 
-              onEdit={onEditTask}
+            <Card
+              key={task.id}
+              task={task}
+              onOpenModal={onOpenModal}
+              onOpenAudit={onOpenAudit}
               isSearchActive={isSearchActive}
-              isSearchMatch={!isSearchActive || task.title?.toLowerCase().includes(searchQuery) || task.description?.toLowerCase().includes(searchQuery)}
+              isSearchMatch={
+                !isSearchActive ||
+                task.title?.toLowerCase().includes(searchQuery) ||
+                task.description?.toLowerCase().includes(searchQuery)
+              }
             />
           ))
         )}

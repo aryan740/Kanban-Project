@@ -11,7 +11,7 @@ const initialState = {
   theme: 'system',
   orgMembers: [],
   activePresence: [],
-  orgName: null // State node tracking organization name parameter
+  orgName: null
 };
 
 export const ROLES = Object.freeze({
@@ -31,140 +31,43 @@ export function canAssignTasks(role) {
 export function canUpdateTask(task, profile) {
   if (!profile) return false;
   if (canAssignTasks(profile.role)) return true;
-  return task.assignedTo === profile.username;
+  return task.assigned_to === profile.username || task.assignedTo === profile.username;
 }
 
 function taskReducer(state, action) {
   switch (action.type) {
     case 'SET_TASKS':
       return { ...state, tasks: action.payload };
-      
+
     case 'CREATE_TASK': {
-      const enrichedTask = {
-        ...action.payload,
-        isDeleted: false,
-        deletedAt: null,
-        logs: [{
-          timestamp: new Date().toISOString(),
-          user: action.payload.operator || 'Authorized Operator',
-          action: 'INITIALIZATION',
-          details: `Created core action ticket node. Assigned to: ${action.payload.assignedTo || 'Unassigned'}`
-        }]
-      };
-      return { ...state, tasks: [...state.tasks, enrichedTask] };
+      const exists = state.tasks.some(t => t.id === action.payload.id);
+      if (exists) return state;
+      return { ...state, tasks: [action.payload, ...state.tasks] };
     }
 
     case 'EDIT_TASK':
       return {
         ...state,
-        tasks: state.tasks.map(task => {
-          if (task.id === action.payload.id) {
-            const changes = [];
-            if (task.title !== action.payload.title) changes.push('Title');
-            if (task.description !== action.payload.description) changes.push('Description');
-            if (task.priority !== action.payload.priority) changes.push('Priority Level');
-            if (task.assignedTo !== action.payload.assignedTo) changes.push('Assigned Resource');
-            if (task.dueDate !== action.payload.dueDate) changes.push('Timeline Deadline');
-
-            const logDetails = changes.length > 0 
-              ? `Mutated core properties: [${changes.join(', ')}].`
-              : 'Adjusted nested matrix attributes.';
-
-            return {
-              ...action.payload,
-              logs: [
-                ...(task.logs || []),
-                {
-                  timestamp: new Date().toISOString(),
-                  user: action.payload.operator || 'Authorized Operator',
-                  action: 'METADATA_UPDATE',
-                  details: logDetails
-                }
-              ]
-            };
-          }
-          return task;
-        })
-      };
-
-    case 'DELETE_TASK':
-      return {
-        ...state,
-        tasks: state.tasks.map(task => {
-          if (task.id === action.payload.id) {
-            return {
-              ...task,
-              isDeleted: true,
-              deletedAt: new Date().toISOString(),
-              logs: [
-                ...(task.logs || []),
-                {
-                  timestamp: new Date().toISOString(),
-                  user: action.payload.operator || 'Authorized Operator',
-                  action: 'SOFT_DELETE',
-                  details: 'Soft delete flagged. 48-Hour retention lease initiated.'
-                }
-              ]
-            };
-          }
-          return task;
-        })
-      };
-
-    case 'RESTORE_TASK':
-      return {
-        ...state,
-        tasks: state.tasks.map(task => {
-          if (task.id === action.payload.id) {
-            return {
-              ...task,
-              isDeleted: false,
-              deletedAt: null,
-              logs: [
-                ...(task.logs || []),
-                {
-                  timestamp: new Date().toISOString(),
-                  user: action.payload.operator || 'Authorized Operator',
-                  action: 'WORKSPACE_RECOVERY',
-                  details: 'Restored node from recovery retention log layer.'
-                }
-              ]
-            };
-          }
-          return task;
-        })
+        tasks: state.tasks.map(task => (task.id === action.payload.id ? { ...task, ...action.payload } : task))
       };
 
     case 'UPDATE_TASK_STATUS':
       return {
         ...state,
-        tasks: state.tasks.map(task => {
-          if (task.id === action.payload.id) {
-            const oldStatus = task.status || 'backlog';
-            const newStatus = action.payload.newStatus;
-            if (oldStatus === newStatus) return task;
+        tasks: state.tasks.map(task =>
+          task.id === action.payload.id ? { ...task, status: action.payload.newStatus } : task
+        )
+      };
 
-            return {
-              ...task,
-              status: newStatus,
-              logs: [
-                ...(task.logs || []),
-                {
-                  timestamp: new Date().toISOString(),
-                  user: action.payload.operator || 'Authorized Operator',
-                  action: 'PIPELINE_SHIFT',
-                  details: `Transitioned status vector from [${oldStatus}] to [${newStatus}].`
-                }
-              ]
-            };
-          }
-          return task;
-        })
+    case 'DELETE_TASK':
+      return {
+        ...state,
+        tasks: state.tasks.filter(task => task.id !== action.payload.id)
       };
 
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.payload };
-      
+
     case 'SET_FILTERS':
       return { ...state, filters: { ...state.filters, ...action.payload } };
 
@@ -179,7 +82,7 @@ function taskReducer(state, action) {
 
     case 'SET_ORG_NAME':
       return { ...state, orgName: action.payload };
-      
+
     default:
       return state;
   }
@@ -191,6 +94,7 @@ export function TaskProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Theme Initializer
   useEffect(() => {
     const savedTheme = localStorage.getItem('synapse_theme');
     dispatch({ type: 'SET_THEME', payload: ['light', 'dark', 'system'].includes(savedTheme) ? savedTheme : 'system' });
@@ -206,6 +110,7 @@ export function TaskProvider({ children }) {
     return () => mediaQuery.removeEventListener('change', applyTheme);
   }, [state.theme]);
 
+  // User Profile Loader
   const fetchUserProfile = useCallback(async (uid) => {
     try {
       const { data, error } = await supabase
@@ -224,6 +129,7 @@ export function TaskProvider({ children }) {
     }
   }, []);
 
+  // Auth Session Setup
   useEffect(() => {
     let isMounted = true;
 
@@ -263,23 +169,28 @@ export function TaskProvider({ children }) {
     };
   }, [fetchUserProfile]);
 
-  // 3. Multi-Tenant Sync Layer (Tracks Tenant Orgs & Sub-accounts)
+  // Fetch Tasks from Normalized Tasks Table
+  const fetchTasks = useCallback(async (orgId) => {
+    if (!orgId) return;
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('org_id', orgId)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      dispatch({ type: 'SET_TASKS', payload: data });
+    } else if (error) {
+      console.error('Tasks fetch failed:', error.message);
+    }
+  }, []);
+
+  // Sync Organization, Members, Metadata, & Realtime Channels
   useEffect(() => {
     if (!profile?.org_id) return;
 
-    // Fetch org tasks
-    const fetchOrgMatrixData = async () => {
-      const { data, error } = await supabase
-        .from('boards')
-        .select('tasks')
-        .eq('org_id', profile.org_id)
-        .single();
-      if (!error && data) {
-        dispatch({ type: 'SET_TASKS', payload: data.tasks || [] });
-      }
-    };
-    
-    // Fetch all members associated with this organization link
+    fetchTasks(profile.org_id);
+
     const fetchOrgMembers = async () => {
       const { data } = await supabase
         .from('profiles')
@@ -290,7 +201,6 @@ export function TaskProvider({ children }) {
       }
     };
 
-    // Extract targeted name metadata configurations from the dedicated organizations table
     const fetchOrganizationMetadata = async () => {
       const { data, error } = await supabase
         .from('organizations')
@@ -302,27 +212,45 @@ export function TaskProvider({ children }) {
       }
     };
 
-    fetchOrgMatrixData();
     fetchOrgMembers();
     fetchOrganizationMetadata();
 
-    // 4. Collaborative Real-time Broadcast Pipeline Integration
-    const channel = supabase.channel(`org_${profile.org_id}`, {
+    // Collaborative Realtime Channel for Tasks & Organizations
+    const channel = supabase.channel(`org_realtime_${profile.org_id}`, {
       config: { presence: { key: profile.username || user?.email || 'Unknown User' } }
     });
 
     channel
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'boards', 
-        filter: `org_id=eq.${profile.org_id}` 
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'tasks',
+        filter: `org_id=eq.${profile.org_id}`
       }, (payload) => {
-        if (payload.new && payload.new.tasks) {
-          dispatch({ type: 'SET_TASKS', payload: payload.new.tasks });
+        if (payload.new) {
+          dispatch({ type: 'CREATE_TASK', payload: payload.new });
         }
       })
-      // Listen dynamically for live data shifts on the organizations record row
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'tasks',
+        filter: `org_id=eq.${profile.org_id}`
+      }, (payload) => {
+        if (payload.new) {
+          dispatch({ type: 'EDIT_TASK', payload: payload.new });
+        }
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'tasks',
+        filter: `org_id=eq.${profile.org_id}`
+      }, (payload) => {
+        if (payload.old) {
+          dispatch({ type: 'DELETE_TASK', payload: { id: payload.old.id } });
+        }
+      })
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -350,31 +278,91 @@ export function TaskProvider({ children }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile, user?.email]);
+  }, [profile, user?.email, fetchTasks]);
 
-  // 5. Automated Debounced Save Framework (Saves to the target Org Matrix row)
-  useEffect(() => {
-    if (!profile?.org_id) return;
+  // Production Action: Atomic Task Status Transition
+  const updateTaskStatus = async (taskId, nextStatus) => {
+    const previousTasks = state.tasks;
+    dispatch({ type: 'UPDATE_TASK_STATUS', payload: { id: taskId, newStatus: nextStatus } });
 
-    const delayDebounceFn = setTimeout(async () => {
-      try {
-        await supabase
-          .from('boards')
-          .upsert({ 
-            org_id: profile.org_id, 
-            tasks: state.tasks, 
-            updated_at: new Date().toISOString() 
-          }, { onConflict: 'org_id' });
-      } catch (err) {
-        console.error('Multi-tenant cloud synch failed:', err.message);
-      }
-    }, 600);
+    const { error } = await supabase
+      .from('tasks')
+      .update({ status: nextStatus, updated_at: new Date().toISOString() })
+      .eq('id', taskId);
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [state.tasks, profile]);
+    if (error) {
+      console.error('RBAC / Network failure updating status:', error.message);
+      // Revert optimistic update if RLS or network fails
+      dispatch({ type: 'SET_TASKS', payload: previousTasks });
+      alert(`Status update failed: ${error.message}`);
+    }
+  };
+
+  // Production Action: Atomic Task Creation
+  const createTask = async (taskPayload) => {
+    if (!profile?.org_id) return { success: false, error: 'No active organization found' };
+
+    const payload = {
+      title: taskPayload.title,
+      description: taskPayload.description || '',
+      status: taskPayload.status || 'backlog',
+      priority: taskPayload.priority || 'medium',
+      assigned_to: taskPayload.assignedTo || taskPayload.assigned_to || null,
+      due_date: taskPayload.dueDate || taskPayload.due_date || null,
+      org_id: profile.org_id,
+      created_by: user?.id
+    };
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Task insert failed:', error.message);
+      alert(`Could not create task: ${error.message}`);
+      return { success: false, error };
+    }
+
+    dispatch({ type: 'CREATE_TASK', payload: data });
+    return { success: true, data };
+  };
+
+  // Production Action: Atomic Task Deletion
+  const deleteTask = async (taskId) => {
+    const previousTasks = state.tasks;
+    dispatch({ type: 'DELETE_TASK', payload: { id: taskId } });
+
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Task deletion failed:', error.message);
+      dispatch({ type: 'SET_TASKS', payload: previousTasks });
+      alert(`Deletion rejected by server policy: ${error.message}`);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  };
 
   return (
-    <TaskContext.Provider value={{ state, dispatch, user, profile, loading }}>
+    <TaskContext.Provider
+      value={{
+        state,
+        dispatch,
+        user,
+        profile,
+        loading,
+        createTask,
+        updateTaskStatus,
+        deleteTask,
+        fetchTasks: () => fetchTasks(profile?.org_id)
+      }}
+    >
       {children}
     </TaskContext.Provider>
   );

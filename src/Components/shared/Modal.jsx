@@ -1,23 +1,27 @@
 import React, { useState } from 'react';
 import { canAssignTasks, canUpdateTask, useTasks } from '../../Context/TaskContext';
+import { supabase } from '../../lib/supabaseClient';
 import { X, Plus, Trash2, Calendar, UserCheck } from 'lucide-react';
 
 export default function Modal({ mode, taskToEdit, onClose }) {
-  const { state, dispatch, profile } = useTasks();
+  const { state, dispatch, profile, createTask } = useTasks();
   const canAssign = canAssignTasks(profile?.role);
   const canEditTask = mode === 'create' ? canAssign : canUpdateTask(taskToEdit, profile);
   const statusOnly = mode === 'edit' && profile?.role === 'employee';
 
-  // 1. Initial State Hydration with strict metadata parameters mappings
+  const initialAssigned = taskToEdit ? (taskToEdit.assigned_to || taskToEdit.assignedTo || '') : '';
+  const initialDueDate = taskToEdit ? (taskToEdit.due_date || taskToEdit.dueDate || '') : '';
+
   const [title, setTitle] = useState(mode === 'edit' && taskToEdit ? taskToEdit.title : '');
-  const [description, setDescription] = useState(mode === 'edit' && taskToEdit ? taskToEdit.description : '');
+  const [description, setDescription] = useState(mode === 'edit' && taskToEdit ? (taskToEdit.description || '') : '');
   const [status, setStatus] = useState(mode === 'edit' && taskToEdit ? taskToEdit.status : 'backlog');
   const [priority, setPriority] = useState(mode === 'edit' && taskToEdit ? taskToEdit.priority : 'medium');
-  const [assignedTo, setAssignedTo] = useState(mode === 'edit' && taskToEdit ? taskToEdit.assignedTo : '');
-  const [dueDate, setDueDate] = useState(mode === 'edit' && taskToEdit ? taskToEdit.dueDate : '');
-  
+  const [assignedTo, setAssignedTo] = useState(initialAssigned);
+  const [dueDate, setDueDate] = useState(initialDueDate);
+
   const [subtasks, setSubtasks] = useState(mode === 'edit' && taskToEdit ? (taskToEdit.subtasks || taskToEdit.subTasks || []) : []);
   const [newSubTaskText, setNewSubTaskText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddSubTask = () => {
     if (!newSubTaskText.trim()) return;
@@ -31,7 +35,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
   };
 
   const handleToggleSubTask = (id) => {
-    setSubtasks(subtasks.map(sub => 
+    setSubtasks(subtasks.map(sub =>
       sub.id === id ? { ...sub, completed: !sub.completed } : sub
     ));
   };
@@ -40,54 +44,72 @@ export default function Modal({ mode, taskToEdit, onClose }) {
     setSubtasks(subtasks.filter(sub => sub.id !== id));
   };
 
-  // Main Submit Core Orchestration Engine
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!canEditTask) return;
+    if (!canEditTask || isSubmitting) return;
     if (!title.trim()) return alert('Issue Title is strictly mandated for operations.');
 
-    const currentOperator = profile?.username || 'Authorized Operator';
+    setIsSubmitting(true);
 
-    if (mode === 'create') {
-      if (!canAssign) return;
-      const newTask = {
-        id: `task-${Date.now()}`,
-        title: title.trim(),
-        description: description.trim(),
-        status,
-        priority,
-        assignedTo,
-        dueDate,
-        subtasks,
-        comments: [],
-        creator: currentOperator,
-        operator: currentOperator,
-        createdAt: new Date().toISOString()
-      };
-      dispatch({ type: 'CREATE_TASK', payload: newTask });
-    } else if (mode === 'edit' && taskToEdit) {
-      const updatedTask = {
-        ...taskToEdit,
-        title: statusOnly ? taskToEdit.title : title.trim(),
-        description: statusOnly ? taskToEdit.description : description.trim(),
-        status,
-        priority: statusOnly ? taskToEdit.priority : priority,
-        assignedTo: statusOnly ? taskToEdit.assignedTo : assignedTo,
-        dueDate: statusOnly ? taskToEdit.dueDate : dueDate,
-        subtasks: statusOnly ? taskToEdit.subtasks : subtasks,
-        operator: currentOperator
-      };
-      
-      if (status !== taskToEdit.status) {
-        dispatch({ 
-          type: 'UPDATE_TASK_STATUS', 
-          payload: { id: taskToEdit.id, newStatus: status, operator: currentOperator } 
+    try {
+      if (mode === 'create') {
+        if (!canAssign) {
+          alert('RBAC Violation: Only Admins and Managers can create tasks.');
+          return;
+        }
+
+        const taskPayload = {
+          title: title.trim(),
+          description: description.trim(),
+          status,
+          priority,
+          assignedTo: assignedTo || null,
+          dueDate: dueDate || null,
+          subtasks
+        };
+
+        const res = await createTask(taskPayload);
+        if (!res.success) return;
+      } else if (mode === 'edit' && taskToEdit) {
+        const updatePayload = {
+          status,
+          updated_at: new Date().toISOString()
+        };
+
+        if (!statusOnly) {
+          updatePayload.title = title.trim();
+          updatePayload.description = description.trim();
+          updatePayload.priority = priority;
+          updatePayload.assigned_to = assignedTo || null;
+          updatePayload.due_date = dueDate || null;
+        }
+
+        const { error } = await supabase
+          .from('tasks')
+          .update(updatePayload)
+          .eq('id', taskToEdit.id);
+
+        if (error) {
+          console.error('Task mutation failed:', error.message);
+          alert(`Update failed: ${error.message}`);
+          return;
+        }
+
+        dispatch({
+          type: 'EDIT_TASK',
+          payload: {
+            ...taskToEdit,
+            ...updatePayload,
+            assignedTo: updatePayload.assigned_to ?? taskToEdit.assignedTo,
+            dueDate: updatePayload.due_date ?? taskToEdit.dueDate
+          }
         });
       }
-      dispatch({ type: 'EDIT_TASK', payload: updatedTask });
-    }
 
-    onClose();
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,7 +137,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
               required
-              disabled={statusOnly}
+              disabled={statusOnly || isSubmitting}
             />
           </div>
 
@@ -127,7 +149,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white resize-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
-              disabled={statusOnly}
+              disabled={statusOnly || isSubmitting}
             />
           </div>
 
@@ -138,6 +160,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
+                disabled={isSubmitting}
                 className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
               >
                 <option value="backlog">Backlog</option>
@@ -154,7 +177,7 @@ export default function Modal({ mode, taskToEdit, onClose }) {
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
                 className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
-                disabled={statusOnly}
+                disabled={statusOnly || isSubmitting}
               >
                 <option value="low">Low Severity</option>
                 <option value="medium">Medium Severity</option>
@@ -163,101 +186,110 @@ export default function Modal({ mode, taskToEdit, onClose }) {
             </div>
           </div>
 
-          {/* New Enterprise Grid Input Segment: Assignee and Due Date Mapping */}
-          {canAssign && <div className="grid grid-cols-2 gap-4 border-t border-slate-100/80 dark:border-slate-800/80 pt-4">
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5 flex items-center gap-1">
-                <UserCheck className="w-3 h-3 text-indigo-500" /> Assign Resource
-              </label>
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
-              >
-                <option value="">Unassigned</option>
-                {state.orgMembers?.map(member => (
-                  <option key={member.id} value={member.username}>
-                    @{member.username} ({member.role})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Assignee and Due Date Mapping */}
+          {canAssign && (
+            <div className="grid grid-cols-2 gap-4 border-t border-slate-100/80 dark:border-slate-800/80 pt-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5 flex items-center gap-1">
+                  <UserCheck className="w-3 h-3 text-indigo-500" /> Assign Resource
+                </label>
+                <select
+                  value={assignedTo}
+                  onChange={(e) => setAssignedTo(e.target.value)}
+                  disabled={isSubmitting}
+                  className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
+                >
+                  <option value="">Unassigned</option>
+                  {state.orgMembers?.map(member => (
+                    <option key={member.id} value={member.username}>
+                      @{member.username} ({member.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5 flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-indigo-500" /> Timeline Deadline
-              </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
-              />
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 px-0.5 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-indigo-500" /> Timeline Deadline
+                </label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  disabled={isSubmitting}
+                  className="w-full px-3 py-2.5 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:border-indigo-600 focus:outline-none cursor-pointer transition-all"
+                />
+              </div>
             </div>
-          </div>}
+          )}
 
           {/* Checklist Engine Block */}
-          {!statusOnly && <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-4 space-y-2">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-0.5">Target Action Checklist</label>
-            
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Add checklist sub-task item parameters..."
-                value={newSubTaskText}
-                onChange={(e) => setNewSubTaskText(e.target.value)}
-                className="flex-1 px-3 py-2 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
-              />
-              <button
-                type="button"
-                onClick={handleAddSubTask}
-                className="bg-slate-950 dark:bg-indigo-600 text-white px-3 rounded-xl hover:bg-slate-800 dark:hover:bg-indigo-700 transition-all shadow-sm flex items-center justify-center cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
+          {!statusOnly && (
+            <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-4 space-y-2">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-0.5">Target Action Checklist</label>
 
-            {/* Render checklist stacks */}
-            <div className="max-h-24 overflow-y-auto space-y-1.5 pt-1 pr-1 scrollbar-thin">
-              {subtasks.map(sub => (
-                <div key={sub.id} className="flex items-center justify-between bg-slate-50/60 dark:bg-slate-950/30 border border-slate-200/50 dark:border-slate-800/60 rounded-xl p-2 group/item transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      checked={sub.completed || false}
-                      onChange={() => handleToggleSubTask(sub.id)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer transition-all"
-                    />
-                    <span className={`text-xs font-semibold text-slate-700 dark:text-slate-300 transition-all ${sub.completed ? 'line-through text-slate-300/90 dark:text-slate-600' : ''}`}>
-                      {sub.text}
-                    </span>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Add checklist sub-task item parameters..."
+                  value={newSubTaskText}
+                  onChange={(e) => setNewSubTaskText(e.target.value)}
+                  disabled={isSubmitting}
+                  className="flex-1 px-3 py-2 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:border-indigo-600 focus:outline-none text-slate-800 dark:text-white transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddSubTask}
+                  disabled={isSubmitting}
+                  className="bg-slate-950 dark:bg-indigo-600 text-white px-3 rounded-xl hover:bg-slate-800 dark:hover:bg-indigo-700 transition-all shadow-sm flex items-center justify-center cursor-pointer disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="max-h-24 overflow-y-auto space-y-1.5 pt-1 pr-1 scrollbar-thin">
+                {subtasks.map(sub => (
+                  <div key={sub.id} className="flex items-center justify-between bg-slate-50/60 dark:bg-slate-950/30 border border-slate-200/50 dark:border-slate-800/60 rounded-xl p-2 group/item transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={sub.completed || false}
+                        onChange={() => handleToggleSubTask(sub.id)}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer transition-all"
+                      />
+                      <span className={`text-xs font-semibold text-slate-700 dark:text-slate-300 transition-all ${sub.completed ? 'line-through text-slate-300/90 dark:text-slate-600' : ''}`}>
+                        {sub.text}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSubTask(sub.id)}
+                      className="text-slate-400 hover:text-rose-600 transition-colors opacity-0 group-hover/item:opacity-100 p-0.5 rounded cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteSubTask(sub.id)}
-                    className="text-slate-400 hover:text-rose-600 transition-colors opacity-0 group-hover/item:opacity-100 p-0.5 rounded cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>}
+          )}
 
           {/* Actions Footer */}
           <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-4 flex items-center justify-end gap-2 sticky bottom-0 bg-white dark:bg-slate-900 pb-1">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md cursor-pointer"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
-              {mode === 'create' ? 'Deploy Issue' : 'Commit Adjustments'}
+              {isSubmitting ? 'Processing...' : (mode === 'create' ? 'Deploy Issue' : 'Commit Adjustments')}
             </button>
           </div>
         </form>
